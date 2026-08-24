@@ -28,7 +28,7 @@ type Patient = {
 };
 
 export default function PatientsScreen() {
-  const { session } = useAuth();
+  const { session, loading } = useAuth();
 
   const [idNumber, setIdNumber] = useState('');
 
@@ -38,9 +38,20 @@ export default function PatientsScreen() {
   const [loading, setLoading] =
     useState(false);
 
-  if (!session) {
-    return <Redirect href="/(auth)/login" />;
-  }
+  if (loading) {
+  return (
+    <View style={styles.loadingContainer}>
+      <ActivityIndicator size="large" color="#2563eb" />
+      <Text style={styles.loadingText}>
+        Loading...
+      </Text>
+    </View>
+  );
+}
+
+if (!session) {
+  return <Redirect href="/(auth)/login" />;
+}
 
   const searchPatient = async () => {
     const cleanId = idNumber.replace(/\s/g, '');

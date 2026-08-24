@@ -17,7 +17,7 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({
   session: null,
-  loading: false,
+  loading: true,
   signOut: async () => {},
 });
 
@@ -27,15 +27,17 @@ export function AuthProvider({
   children: React.ReactNode;
 }) {
   const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
     async function loadSession() {
       try {
-        const { data, error } =
-          await supabase.auth.getSession();
+        const {
+          data,
+          error,
+        } = await supabase.auth.getSession();
 
         if (!mounted) return;
 
@@ -46,10 +48,9 @@ export function AuthProvider({
           );
 
           setSession(null);
-          return;
+        } else {
+          setSession(data.session);
         }
-
-        setSession(data.session);
       } catch (error) {
         console.error(
           'AUTH SESSION ERROR:',
@@ -58,6 +59,10 @@ export function AuthProvider({
 
         if (mounted) {
           setSession(null);
+        }
+      } finally {
+        if (mounted) {
+          setLoading(false);
         }
       }
     }
@@ -71,6 +76,7 @@ export function AuthProvider({
         if (!mounted) return;
 
         setSession(newSession);
+        setLoading(false);
       }
     );
 
@@ -81,6 +87,8 @@ export function AuthProvider({
   }, []);
 
   async function signOut() {
+    setLoading(true);
+
     const { error } =
       await supabase.auth.signOut();
 
@@ -92,6 +100,7 @@ export function AuthProvider({
     }
 
     setSession(null);
+    setLoading(false);
   }
 
   return (

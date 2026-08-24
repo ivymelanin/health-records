@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { useState } from 'react';
+import { router } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
 
@@ -78,9 +79,15 @@ export default function RegisterScreen() {
       );
 
       Alert.alert(
-        'Registration successful',
-        'Your MediVault account has been created.'
-      );
+  'Registration successful',
+  'Your account has been created. Please sign in.',
+  [
+    {
+      text: 'Continue',
+      onPress: () => router.replace('/(auth)/login'),
+    },
+  ]
+);
 
       setFirstName('');
       setLastName('');

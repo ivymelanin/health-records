@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 
 import { useState } from 'react';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
 
@@ -57,10 +57,8 @@ export default function LoginScreen() {
         data.user?.id
       );
 
-      Alert.alert(
-        'Login successful',
-        `Welcome back ${data.user?.email}`
-      );
+      router.replace('/(app)/dashboard');
+
     } catch (error) {
       console.error(
         'LOGIN EXCEPTION:',
