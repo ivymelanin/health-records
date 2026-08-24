@@ -40,6 +40,8 @@ export default function LoginScreen() {
         Alert.alert('Login failed', error.message);
         return;
       }
+      
+      console.log('ACCESS TOKEN:', data.session?.access_token);
 
       if (!data.user) {
         Alert.alert(
