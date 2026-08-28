@@ -1,3 +1,4 @@
+
 import {
   ActivityIndicator,
   Alert,
@@ -9,7 +10,7 @@ import {
 } from 'react-native';
 
 import { useState } from 'react';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
 
@@ -51,17 +52,142 @@ export default function LoginScreen() {
 
         return;
       }
-      
-      console.log('ACCESS TOKEN:', data.session?.access_token);
+
+      const user = data.user;
+      const session = data.session;
+
+      if (!user || !session) {
+        Alert.alert(
+          'Login failed',
+          'No authenticated session was returned.'
+        );
+
+        return;
+      }
 
       console.log(
         'LOGIN SUCCESS:',
-        data.user?.id
+        user.id
       );
 
+      /*
+       * TEMPORARY POSTMAN TESTING
+       *
+       * Supabase creates this JWT for the
+       * authenticated user.
+       *
+       * DO NOT put this token in your source code.
+       * Remove this console.log after testing.
+       */
+      console.log(
+        '=============================='
+      );
+
+      console.log(
+        'SUPABASE ACCESS TOKEN:'
+      );
+
+      console.log(
+        session.access_token
+      );
+
+      console.log(
+        '=============================='
+      );
+
+      // ------------------------------------
+      // Get user's role
+      // ------------------------------------
+
+      const {
+        data: profile,
+        error: profileError,
+      } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error(
+          'PROFILE ERROR:',
+          profileError.message
+        );
+
+        await supabase.auth.signOut();
+
+        Alert.alert(
+          'Login error',
+          'Unable to determine your user role.'
+        );
+
+        return;
+      }
+
+      if (!profile) {
+        await supabase.auth.signOut();
+
+        Alert.alert(
+          'Account setup error',
+          'Your user profile does not exist.'
+        );
+
+        return;
+      }
+
+      const role =
+        typeof profile.role === 'string'
+          ? profile.role.trim().toLowerCase()
+          : '';
+
+      console.log(
+        'USER ROLE:',
+        role
+      );
+
+      // ------------------------------------
+      // ADMIN DASHBOARD
+      // ------------------------------------
+
+      if (role === 'admin') {
+        console.log(
+          'ROUTING TO ADMIN DASHBOARD'
+        );
+
+        router.replace(
+          '/(app)/admin-dashboard'
+        );
+
+        return;
+      }
+
+      // ------------------------------------
+      // HEALTHCARE WORKER DASHBOARD
+      // ------------------------------------
+
+      if (
+        role === 'healthcare_worker'
+      ) {
+        console.log(
+          'ROUTING TO HEALTHCARE WORKER DASHBOARD'
+        );
+
+        router.replace(
+          '/(app)/dashboard'
+        );
+
+        return;
+      }
+
+      // ------------------------------------
+      // Invalid role
+      // ------------------------------------
+
+      await supabase.auth.signOut();
+
       Alert.alert(
-        'Login successful',
-        `Welcome back ${data.user?.email}`
+        'Access denied',
+        `Invalid application role: ${profile.role}`
       );
     } catch (error) {
       console.error(
@@ -80,6 +206,7 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+
       <Text style={styles.logo}>
         MediVault
       </Text>
@@ -100,6 +227,7 @@ export default function LoginScreen() {
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
+        editable={!loading}
       />
 
       <TextInput
@@ -108,6 +236,7 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        editable={!loading}
       />
 
       <TouchableOpacity
@@ -119,20 +248,23 @@ export default function LoginScreen() {
         disabled={loading}
       >
         {loading ? (
-          <ActivityIndicator color="#ffffff" />
+          <ActivityIndicator
+            color="#ffffff"
+          />
         ) : (
-          <><Text style={styles.buttonText}>
-              Sign In
-            </Text>
-            <Link
-              href="/(auth)/register"
-              style={styles.registerLink}
-            >
-                Don't have an account? Register
-              </Link></>
-        
+          <Text style={styles.buttonText}>
+            Sign In
+          </Text>
         )}
       </TouchableOpacity>
+
+      <Link
+        href="/(auth)/register"
+        style={styles.registerLink}
+      >
+        Don't have an account? Register
+      </Link>
+
     </View>
   );
 }
@@ -197,10 +329,11 @@ const styles = StyleSheet.create({
   },
 
   registerLink: {
-  textAlign: 'center',
-  marginTop: 20,
-  fontSize: 15,
-  color: '#2563eb',
-  fontWeight: '600',
-},
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 15,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
 });
+
