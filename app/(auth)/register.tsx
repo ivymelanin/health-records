@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 
 import { useState } from 'react';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
 
@@ -128,22 +128,22 @@ export default function RegisterScreen() {
         data.user?.id
       );
 
+      Alert.alert(
+  'Registration successful',
+  'Your account has been created. Please sign in.',
+  [
+    {
+      text: 'Continue',
+      onPress: () => router.replace('/(auth)/login'),
+    },
+  ]
+);
+
       console.log(
         'REGISTERED ROLE:',
         role
       );
 
-      // Find the display name of the role
-      const selectedRole = roles.find(
-        (item) => item.value === role
-      );
-
-      const roleLabel =
-        selectedRole?.label ?? 'Healthcare Worker';
-
-      // -----------------------------------------
-      // SUCCESS MESSAGE
-      // -----------------------------------------
 
       Alert.alert(
         'Registration successful',
@@ -381,12 +381,12 @@ export default function RegisterScreen() {
           Already have an account?{' '}
         </Text>
 
-        <Link
+      
           href="/(auth)/login"
-          style={styles.loginLink}
-        >
+       
+        
           Sign In
-        </Link>
+       
       </View>
 
     </View>
