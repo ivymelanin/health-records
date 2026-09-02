@@ -10,11 +10,7 @@ import {
 } from 'react-native';
 
 import { useState } from 'react';
-<<<<<<< Updated upstream
 import { router } from 'expo-router';
-=======
-import { Link } from 'expo-router';
->>>>>>> Stashed changes
 
 import { supabase } from '../../lib/supabase';
 
@@ -100,7 +96,6 @@ export default function RegisterScreen() {
         data.user?.id
       );
 
-<<<<<<< Updated upstream
       Alert.alert(
   'Registration successful',
   'Your account has been created. Please sign in.',
@@ -111,12 +106,12 @@ export default function RegisterScreen() {
     },
   ]
 );
-=======
+
       console.log(
         'REGISTERED ROLE:',
         role
       );
->>>>>>> Stashed changes
+
 
       Alert.alert(
         'Registration successful',
@@ -277,12 +272,12 @@ export default function RegisterScreen() {
           Already have an account?{' '}
         </Text>
 
-        <Link
+      
           href="/(auth)/login"
-          style={styles.loginLink}
-        >
+       
+        
           Sign In
-        </Link>
+       
       </View>
 
     </View>
