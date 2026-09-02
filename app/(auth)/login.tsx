@@ -19,6 +19,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
+    // Check that the user entered both fields
     if (!email.trim() || !password) {
       Alert.alert(
         'Missing information',
@@ -32,38 +33,27 @@ export default function LoginScreen() {
 
       console.log('LOGIN: attempting...');
 
-      const { data, error } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
 
+      // Supabase returned an error
       if (error) {
-        console.error(
-          'LOGIN ERROR:',
-          error.message
-        );
+        console.error('LOGIN ERROR:', error.message);
 
-        Alert.alert(
-          'Login failed',
-          error.message
-        );
+        Alert.alert('Login failed', error.message);
 
         return;
       }
 
-      console.log(
-        'LOGIN SUCCESS:',
-        data.user?.id
-      );
+      // Login successful
+      console.log('LOGIN SUCCESS:', data.user?.id);
 
+      // Go to dashboard
       router.replace('/(app)/dashboard');
-
     } catch (error) {
-      console.error(
-        'LOGIN EXCEPTION:',
-        error
-      );
+      console.error('LOGIN EXCEPTION:', error);
 
       Alert.alert(
         'Error',
@@ -76,10 +66,13 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
+
+      {/* LOGO */}
       <Text style={styles.logo}>
-        MediVault
+        CARELINK
       </Text>
 
+      {/* TITLE */}
       <Text style={styles.title}>
         Welcome Back
       </Text>
@@ -88,24 +81,31 @@ export default function LoginScreen() {
         Sign in to access patient records
       </Text>
 
+      {/* EMAIL */}
       <TextInput
         style={styles.input}
         placeholder="Email address"
+        placeholderTextColor="#94a3b8"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
         autoCapitalize="none"
         autoCorrect={false}
+        editable={!loading}
       />
 
+      {/* PASSWORD */}
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#94a3b8"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        editable={!loading}
       />
 
+      {/* SIGN IN BUTTON */}
       <TouchableOpacity
         style={[
           styles.button,
@@ -113,22 +113,31 @@ export default function LoginScreen() {
         ]}
         onPress={handleLogin}
         disabled={loading}
+        activeOpacity={0.8}
       >
         {loading ? (
           <ActivityIndicator color="#ffffff" />
         ) : (
-          <><Text style={styles.buttonText}>
-              Sign In
-            </Text>
-            <Link
-              href="/(auth)/register"
-              style={styles.registerLink}
-            >
-                Don't have an account? Register
-              </Link></>
-        
+          <Text style={styles.buttonText}>
+            Sign In
+          </Text>
         )}
       </TouchableOpacity>
+
+      {/* REGISTER LINK */}
+      <View style={styles.registerContainer}>
+        <Text style={styles.registerText}>
+          Don't have an account?{' '}
+        </Text>
+
+        <Link
+          href="/(auth)/register"
+          style={styles.registerLink}
+        >
+          Register
+        </Link>
+      </View>
+
     </View>
   );
 }
@@ -137,7 +146,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
     backgroundColor: '#ffffff',
   },
 
@@ -147,6 +156,7 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     textAlign: 'center',
     marginBottom: 35,
+    letterSpacing: 1,
   },
 
   title: {
@@ -171,6 +181,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     fontSize: 16,
     color: '#0f172a',
+    backgroundColor: '#ffffff',
   },
 
   button: {
@@ -192,11 +203,21 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
+  registerContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 22,
+  },
+
+  registerText: {
+    fontSize: 15,
+    color: '#64748b',
+  },
+
   registerLink: {
-  textAlign: 'center',
-  marginTop: 20,
-  fontSize: 15,
-  color: '#2563eb',
-  fontWeight: '600',
-},
+    fontSize: 15,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
 });

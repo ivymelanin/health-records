@@ -13,6 +13,7 @@ import { supabase } from '../../lib/supabase';
 
 export default function DashboardScreen() {
   const [userEmail, setUserEmail] = useState('');
+  const [userRole, setUserRole] = useState('');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -26,6 +27,7 @@ export default function DashboardScreen() {
       } = await supabase.auth.getUser();
 
       setUserEmail(user?.email ?? '');
+      setUserRole(user?.user_metadata?.role ?? 'Healthcare Worker');
     } catch (error) {
       console.error('DASHBOARD USER ERROR:', error);
     } finally {
@@ -36,6 +38,22 @@ export default function DashboardScreen() {
   const handleSignOut = async () => {
     await supabase.auth.signOut();
     router.replace('/(auth)/login');
+  };
+
+  const getShowRole = () => {
+    if (!userRole) return '';
+
+    const roleMap: Record<string, string> = {
+      admin: 'Admin',
+      administrator: 'Admin',
+      doctor: 'Dr.',
+      nurse: 'Nurse',
+      paramedic: 'Paramedic',
+      'healthcare worker': 'Healthcare Worker',
+    };
+
+    const normalizedRole = userRole.trim().toLowerCase();
+    return roleMap[normalizedRole] ?? userRole;
   };
 
   const getFirstName = () => {
@@ -153,7 +171,7 @@ export default function DashboardScreen() {
 
               <View>
                 <Text style={styles.profileName}>{getFirstName()}</Text>
-                <Text style={styles.profileRole}>Healthcare Worker</Text>
+                <Text style={styles.profileRole}>{userRole || 'Healthcare Worker'}</Text>
               </View>
 
               <Text style={styles.chevron}>⌄</Text>
@@ -169,7 +187,7 @@ export default function DashboardScreen() {
           {/* WELCOME */}
           <View style={styles.welcomeSection}>
             <Text style={styles.welcomeTitle}>
-              Good morning, {getFirstName()} 👋
+              Good morning, {getShowRole()} {getFirstName()}👋
             </Text>
 
             <Text style={styles.welcomeSubtitle}>
@@ -179,7 +197,7 @@ export default function DashboardScreen() {
 
           {/* STATISTICS */}
           <View style={styles.statsGrid}>
-            <StatCard
+           <StatCard
               icon="♙"
               number="128"
               label="Total Patients"

@@ -10,19 +10,27 @@ import {
 } from 'react-native';
 
 import { useState } from 'react';
-<<<<<<< Updated upstream
-import { router } from 'expo-router';
-=======
-import { Link } from 'expo-router';
->>>>>>> Stashed changes
+import { Link, router } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
 
 const roles = [
-  'Admin',
-  'Doctor',
-  'Nurse',
-  'Paramedic',
+  {
+    label: 'Admin',
+    value: 'admin',
+  },
+  {
+    label: 'Doctor',
+    value: 'doctor',
+  },
+  {
+    label: 'Nurse',
+    value: 'nurse',
+  },
+  {
+    label: 'Paramedic',
+    value: 'paramedic',
+  },
 ];
 
 export default function RegisterScreen() {
@@ -36,7 +44,10 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    // Check that all fields have been completed
+    // -----------------------------------------
+    // VALIDATE FORM
+    // -----------------------------------------
+
     if (
       !firstName.trim() ||
       !lastName.trim() ||
@@ -52,7 +63,10 @@ export default function RegisterScreen() {
       return;
     }
 
-    // Check password length
+    // -----------------------------------------
+    // VALIDATE PASSWORD
+    // -----------------------------------------
+
     if (password.length < 6) {
       Alert.alert(
         'Invalid password',
@@ -65,27 +79,37 @@ export default function RegisterScreen() {
     try {
       setLoading(true);
 
+      // Close dropdown if it is open
+      setShowRoles(false);
+
       console.log('REGISTER: attempting...');
       console.log('REGISTER ROLE:', role);
 
-      const { data, error } =
-        await supabase.auth.signUp({
-          email: email.trim(),
-          password,
-          options: {
-            data: {
-              first_name: firstName.trim(),
-              last_name: lastName.trim(),
-              role: role,
-            },
+      // -----------------------------------------
+      // CREATE SUPABASE ACCOUNT
+      // -----------------------------------------
+
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          data: {
+            first_name: firstName.trim(),
+            last_name: lastName.trim(),
+
+            // Save the role in lowercase.
+            // Example: doctor, nurse, admin, paramedic
+            role: role,
           },
-        });
+        },
+      });
+
+      // -----------------------------------------
+      // HANDLE REGISTRATION ERROR
+      // -----------------------------------------
 
       if (error) {
-        console.error(
-          'REGISTER ERROR:',
-          error.message
-        );
+        console.error('REGISTER ERROR:', error.message);
 
         Alert.alert(
           'Registration failed',
@@ -95,41 +119,56 @@ export default function RegisterScreen() {
         return;
       }
 
+      // -----------------------------------------
+      // REGISTRATION SUCCESS
+      // -----------------------------------------
+
       console.log(
         'REGISTER SUCCESS:',
         data.user?.id
       );
 
-<<<<<<< Updated upstream
-      Alert.alert(
-  'Registration successful',
-  'Your account has been created. Please sign in.',
-  [
-    {
-      text: 'Continue',
-      onPress: () => router.replace('/(auth)/login'),
-    },
-  ]
-);
-=======
       console.log(
         'REGISTERED ROLE:',
         role
       );
->>>>>>> Stashed changes
+
+      // Find the display name of the role
+      const selectedRole = roles.find(
+        (item) => item.value === role
+      );
+
+      const roleLabel =
+        selectedRole?.label ?? 'Healthcare Worker';
+
+      // -----------------------------------------
+      // SUCCESS MESSAGE
+      // -----------------------------------------
 
       Alert.alert(
         'Registration successful',
-        `Your MediVault account has been created as a ${role}.`
+        `Your CARELINK account has been created as a ${roleLabel}. Please sign in.`,
+        [
+          {
+            text: 'Continue',
+            onPress: () => {
+              router.replace('/(auth)/login');
+            },
+          },
+        ]
       );
 
-      // Clear the form
+      // -----------------------------------------
+      // CLEAR FORM
+      // -----------------------------------------
+
       setFirstName('');
       setLastName('');
       setEmail('');
       setRole('');
       setPassword('');
       setShowRoles(false);
+
     } catch (error) {
       console.error(
         'REGISTER EXCEPTION:',
@@ -148,12 +187,18 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
 
-      {/* Logo */}
+      {/* =====================================
+          LOGO
+      ====================================== */}
+
       <Text style={styles.logo}>
-        MediVault
+        CARELINK
       </Text>
 
-      {/* Heading */}
+      {/* =====================================
+          HEADING
+      ====================================== */}
+
       <Text style={styles.title}>
         Create Account
       </Text>
@@ -162,30 +207,44 @@ export default function RegisterScreen() {
         Register as a healthcare worker
       </Text>
 
-      {/* First Name */}
+      {/* =====================================
+          FIRST NAME
+      ====================================== */}
+
       <TextInput
         style={styles.input}
         placeholder="First name"
+        placeholderTextColor="#94a3b8"
         value={firstName}
         onChangeText={setFirstName}
         autoCapitalize="words"
+        autoCorrect={false}
         editable={!loading}
       />
 
-      {/* Last Name */}
+      {/* =====================================
+          LAST NAME
+      ====================================== */}
+
       <TextInput
         style={styles.input}
         placeholder="Last name"
+        placeholderTextColor="#94a3b8"
         value={lastName}
         onChangeText={setLastName}
         autoCapitalize="words"
+        autoCorrect={false}
         editable={!loading}
       />
 
-      {/* Email */}
+      {/* =====================================
+          EMAIL
+      ====================================== */}
+
       <TextInput
         style={styles.input}
         placeholder="Email address"
+        placeholderTextColor="#94a3b8"
         value={email}
         onChangeText={setEmail}
         keyboardType="email-address"
@@ -194,17 +253,26 @@ export default function RegisterScreen() {
         editable={!loading}
       />
 
-      {/* Role Label */}
+      {/* =====================================
+          ROLE LABEL
+      ====================================== */}
+
       <Text style={styles.roleLabel}>
         Register as
       </Text>
 
-      {/* Role Dropdown */}
+      {/* =====================================
+          ROLE DROPDOWN
+      ====================================== */}
+
       <Pressable
-        style={styles.dropdown}
+        style={[
+          styles.dropdown,
+          showRoles && styles.dropdownActive,
+        ]}
         onPress={() => {
           if (!loading) {
-            setShowRoles(!showRoles);
+            setShowRoles((previous) => !previous);
           }
         }}
       >
@@ -215,7 +283,9 @@ export default function RegisterScreen() {
               : styles.placeholderText
           }
         >
-          {role || 'Select your role'}
+          {role
+            ? roles.find((item) => item.value === role)?.label
+            : 'Select your role'}
         </Text>
 
         <Text style={styles.arrow}>
@@ -223,37 +293,67 @@ export default function RegisterScreen() {
         </Text>
       </Pressable>
 
-      {/* Dropdown Options */}
+      {/* =====================================
+          DROPDOWN OPTIONS
+      ====================================== */}
+
       {showRoles && (
         <View style={styles.dropdownList}>
-          {roles.map((item) => (
+          {roles.map((item, index) => (
             <Pressable
-              key={item}
-              style={styles.roleOption}
+              key={item.value}
+              style={[
+                styles.roleOption,
+                index === roles.length - 1 &&
+                  styles.lastRoleOption,
+                role === item.value &&
+                  styles.selectedRoleOption,
+              ]}
               onPress={() => {
-                setRole(item);
+                setRole(item.value);
                 setShowRoles(false);
               }}
             >
-              <Text style={styles.roleOptionText}>
-                {item}
+              <Text
+                style={[
+                  styles.roleOptionText,
+                  role === item.value &&
+                    styles.selectedRoleOptionText,
+                ]}
+              >
+                {item.label}
               </Text>
+
+              {role === item.value && (
+                <Text style={styles.checkMark}>
+                  ✓
+                </Text>
+              )}
             </Pressable>
           ))}
         </View>
       )}
 
-      {/* Password */}
+      {/* =====================================
+          PASSWORD
+      ====================================== */}
+
       <TextInput
         style={styles.input}
         placeholder="Password"
+        placeholderTextColor="#94a3b8"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        autoCapitalize="none"
+        autoCorrect={false}
         editable={!loading}
       />
 
-      {/* Create Account Button */}
+      {/* =====================================
+          CREATE ACCOUNT BUTTON
+      ====================================== */}
+
       <TouchableOpacity
         style={[
           styles.button,
@@ -261,6 +361,7 @@ export default function RegisterScreen() {
         ]}
         onPress={handleRegister}
         disabled={loading}
+        activeOpacity={0.8}
       >
         {loading ? (
           <ActivityIndicator color="#ffffff" />
@@ -271,7 +372,10 @@ export default function RegisterScreen() {
         )}
       </TouchableOpacity>
 
-      {/* Login Link */}
+      {/* =====================================
+          LOGIN LINK
+      ====================================== */}
+
       <View style={styles.loginContainer}>
         <Text style={styles.loginText}>
           Already have an account?{' '}
@@ -290,12 +394,21 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
+
+  // =========================================
+  // CONTAINER
+  // =========================================
+
   container: {
     flex: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 24,
     backgroundColor: '#ffffff',
   },
+
+  // =========================================
+  // LOGO
+  // =========================================
 
   logo: {
     fontSize: 34,
@@ -303,7 +416,12 @@ const styles = StyleSheet.create({
     color: '#2563eb',
     textAlign: 'center',
     marginBottom: 35,
+    letterSpacing: 1,
   },
+
+  // =========================================
+  // TITLE
+  // =========================================
 
   title: {
     fontSize: 28,
@@ -312,11 +430,19 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
 
+  // =========================================
+  // SUBTITLE
+  // =========================================
+
   subtitle: {
     fontSize: 15,
     color: '#64748b',
     marginBottom: 28,
   },
+
+  // =========================================
+  // INPUT
+  // =========================================
 
   input: {
     height: 52,
@@ -330,12 +456,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
 
+  // =========================================
+  // ROLE LABEL
+  // =========================================
+
   roleLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#334155',
     marginBottom: 7,
   },
+
+  // =========================================
+  // DROPDOWN
+  // =========================================
 
   dropdown: {
     height: 52,
@@ -348,6 +482,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+
+  dropdownActive: {
+    borderColor: '#2563eb',
   },
 
   dropdownText: {
@@ -365,6 +503,10 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
 
+  // =========================================
+  // DROPDOWN LIST
+  // =========================================
+
   dropdownList: {
     marginTop: -8,
     marginBottom: 14,
@@ -373,19 +515,61 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     backgroundColor: '#ffffff',
     overflow: 'hidden',
+
+    // Web shadow
+    shadowColor: '#000000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+
+    elevation: 4,
   },
 
+  // =========================================
+  // ROLE OPTION
+  // =========================================
+
   roleOption: {
+    minHeight: 50,
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+
+  lastRoleOption: {
+    borderBottomWidth: 0,
+  },
+
+  selectedRoleOption: {
+    backgroundColor: '#eff6ff',
   },
 
   roleOptionText: {
     fontSize: 16,
     color: '#0f172a',
   },
+
+  selectedRoleOptionText: {
+    color: '#2563eb',
+    fontWeight: '600',
+  },
+
+  checkMark: {
+    fontSize: 18,
+    color: '#2563eb',
+    fontWeight: '700',
+  },
+
+  // =========================================
+  // BUTTON
+  // =========================================
 
   button: {
     height: 52,
@@ -405,6 +589,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
+
+  // =========================================
+  // LOGIN LINK
+  // =========================================
 
   loginContainer: {
     flexDirection: 'row',

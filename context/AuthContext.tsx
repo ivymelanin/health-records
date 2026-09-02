@@ -26,34 +26,54 @@ export function AuthProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const [session, setSession] = useState<Session | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [session, setSession] =
+    useState<Session | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    async function loadSession() {
+    console.log('AUTH PROVIDER: started');
+
+    // =========================================
+    // INITIAL SESSION
+    // =========================================
+
+    const loadSession = async () => {
+      console.log('AUTH: getting session...');
+
       try {
         const {
           data,
           error,
         } = await supabase.auth.getSession();
 
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
 
         if (error) {
           console.error(
-            'AUTH SESSION ERROR:',
+            'AUTH GET SESSION ERROR:',
             error.message
           );
 
           setSession(null);
         } else {
+          console.log(
+            'AUTH SESSION:',
+            data.session
+              ? 'USER IS LOGGED IN'
+              : 'NO USER SESSION'
+          );
+
           setSession(data.session);
         }
       } catch (error) {
         console.error(
-          'AUTH SESSION ERROR:',
+          'AUTH SESSION EXCEPTION:',
           error
         );
 
@@ -62,46 +82,86 @@ export function AuthProvider({
         }
       } finally {
         if (mounted) {
+          console.log(
+            'AUTH: setting loading to FALSE'
+          );
+
           setLoading(false);
         }
       }
-    }
+    };
 
     loadSession();
+
+    // =========================================
+    // AUTH STATE LISTENER
+    // =========================================
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        if (!mounted) return;
+      (event, newSession) => {
+        console.log(
+          'AUTH STATE CHANGE:',
+          event
+        );
+
+        if (!mounted) {
+          return;
+        }
 
         setSession(newSession);
         setLoading(false);
       }
     );
 
+    // =========================================
+    // CLEANUP
+    // =========================================
+
     return () => {
+      console.log(
+        'AUTH PROVIDER: cleanup'
+      );
+
       mounted = false;
+
       subscription.unsubscribe();
     };
   }, []);
 
-  async function signOut() {
-    setLoading(true);
+  // =========================================
+  // SIGN OUT
+  // =========================================
 
-    const { error } =
-      await supabase.auth.signOut();
+  const signOut = async () => {
+    try {
+      setLoading(true);
 
-    if (error) {
-      console.error(
-        'SIGN OUT ERROR:',
-        error.message
+      console.log(
+        'AUTH: signing out...'
       );
-    }
 
-    setSession(null);
-    setLoading(false);
-  }
+      const { error } =
+        await supabase.auth.signOut();
+
+      if (error) {
+        console.error(
+          'SIGN OUT ERROR:',
+          error.message
+        );
+      }
+
+      setSession(null);
+    } catch (error) {
+      console.error(
+        'SIGN OUT EXCEPTION:',
+        error
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <AuthContext.Provider
