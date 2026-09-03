@@ -19,50 +19,88 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    // Check that the user entered both fields
-    if (!email.trim() || !password) {
-      Alert.alert(
-        'Missing information',
-        'Please enter your email and password.'
-      );
+  if (!email.trim() || !password) {
+    Alert.alert(
+      'Missing information',
+      'Please enter your email and password.'
+    );
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    console.log('LOGIN: attempting...');
+
+    // 1. Sign in with Supabase
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+    });
+
+    if (error) {
+      console.error('LOGIN ERROR:', error.message);
+
+      Alert.alert('Login failed', error.message);
       return;
     }
 
-    try {
-      setLoading(true);
+    // Make sure we actually received a user
+    if (!data.user) {
+      Alert.alert('Login failed', 'User information could not be loaded.');
+      return;
+    }
 
-      console.log('LOGIN: attempting...');
+    console.log('LOGIN SUCCESS:', data.user.id);
 
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
+    // 2. Get the user's role from the profiles table
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', data.user.id)
+      .single();
 
-      // Supabase returned an error
-      if (error) {
-        console.error('LOGIN ERROR:', error.message);
-
-        Alert.alert('Login failed', error.message);
-
-        return;
-      }
-
-      // Login successful
-      console.log('LOGIN SUCCESS:', data.user?.id);
-
-      // Go to dashboard
-      router.replace('/(app)/dashboard');
-    } catch (error) {
-      console.error('LOGIN EXCEPTION:', error);
+    if (profileError) {
+      console.error('PROFILE ERROR:', profileError.message);
 
       Alert.alert(
-        'Error',
-        'Something went wrong while logging in.'
+        'Login error',
+        'Your account role could not be determined.'
       );
-    } finally {
-      setLoading(false);
+
+      return;
     }
-  };
+
+    console.log('USER ROLE:', profile.role);
+
+    // 3. Redirect according to role
+    if (profile.role === 'admin') {
+      router.replace('/admin');
+    } 
+    else if (profile.role === 'healthworker') {
+      router.replace('/dashboard');
+    } 
+    else if (profile.role === 'patient') {
+      router.replace('/patient/dashboard');
+    } 
+    else {
+      Alert.alert(
+        'Account error',
+        'Your account does not have a valid role assigned.'
+      );
+    }
+
+  } catch (error) {
+    console.error('LOGIN EXCEPTION:', error);
+
+    Alert.alert(
+      'Error',
+      'Something went wrong while logging in.'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <View style={styles.container}>

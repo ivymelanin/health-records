@@ -258,7 +258,7 @@ export default function RegisterScreen() {
       ====================================== */}
 
       <Text style={styles.roleLabel}>
-        Register as
+        Role
       </Text>
 
       {/* =====================================
@@ -381,8 +381,7 @@ export default function RegisterScreen() {
           Already have an account?{' '}
         </Text>
 
-      
-          href="/(auth)/login"
+    
        
         
           Sign In
