@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import * as LocalAuthentication from 'expo-local-authentication';
 
 import { supabase } from '../../lib/supabase';
 
@@ -71,6 +72,53 @@ export default function DashboardScreen() {
 
     return roleMap[userRole.trim().toLowerCase()] ?? userRole;
   };
+
+  const handleFingerprintScan = async () => {
+  try {
+    // Check if the device supports biometric authentication
+    const hasHardware = await LocalAuthentication.hasHardwareAsync();
+
+    if (!hasHardware) {
+      alert('This device does not have a fingerprint or biometric sensor.');
+      return;
+    }
+
+    // Check if a fingerprint/biometric is enrolled
+    const isEnrolled = await LocalAuthentication.isEnrolledAsync();
+
+    if (!isEnrolled) {
+      alert(
+        'No fingerprint or biometric is registered on this device. Please register one in your device settings.'
+      );
+      return;
+    }
+
+    // Start biometric authentication
+    const result = await LocalAuthentication.authenticateAsync({
+      promptMessage: 'Scan your fingerprint',
+      cancelLabel: 'Cancel',
+      disableDeviceFallback: false,
+    });
+
+    if (result.success) {
+      console.log('Fingerprint authentication successful');
+
+      // For now, show success
+      alert('Fingerprint verified successfully!');
+
+      // Later we will use the biometric result
+      // to find the patient's record.
+    } else {
+      console.log('Fingerprint authentication failed:', result);
+
+      alert('Fingerprint verification was cancelled or unsuccessful.');
+    }
+  } catch (error) {
+    console.error('FINGERPRINT ERROR:', error);
+
+    alert('Unable to start fingerprint verification.');
+  }
+};
 
   const handlePatientSearch = () => {
     if (!patientId.trim()) {
@@ -433,7 +481,9 @@ export default function DashboardScreen() {
                     />
                   </View>
 
-                  <Pressable style={styles.scanButton}>
+                  <Pressable
+  style={styles.scanButton}
+  onPress={handleFingerprintScan}>
 
                     <Text style={styles.scanButtonText}>
                       Scan Fingerprint
