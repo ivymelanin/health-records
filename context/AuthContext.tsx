@@ -1,4 +1,3 @@
-
 import {
   createContext,
   useContext,
@@ -19,6 +18,10 @@ type AuthContextType = {
   session: Session | null;
   role: UserRole;
   loading: boolean;
+  signIn: (
+    email: string,
+    password: string
+  ) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -26,6 +29,7 @@ const AuthContext = createContext<AuthContextType>({
   session: null,
   role: null,
   loading: true,
+  signIn: async () => {},
   signOut: async () => {},
 });
 
@@ -52,12 +56,14 @@ export function AuthProvider({
     }
 
     try {
-      const { data, error } =
-        await supabase
-          .from('profiles')
-          .select('role')
-          .eq('id', currentSession.user.id)
-          .maybeSingle();
+      const {
+        data,
+        error,
+      } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', currentSession.user.id)
+        .maybeSingle();
 
       if (error) {
         console.error(
@@ -179,6 +185,8 @@ export function AuthProvider({
         } else {
           setRole(null);
         }
+
+        setLoading(false);
       }
     );
 
@@ -188,10 +196,44 @@ export function AuthProvider({
     };
   }, []);
 
-  const signOut = async () => {
+  async function signIn(
+    email: string,
+    password: string
+  ) {
+    console.log(
+      'AUTH CONTEXT: signing in...'
+    );
+
     const {
+      data,
       error,
-    } = await supabase.auth.signOut();
+    } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      console.error(
+        'AUTH CONTEXT LOGIN ERROR:',
+        error.message
+      );
+
+      throw error;
+    }
+
+    console.log(
+      'AUTH CONTEXT LOGIN SUCCESS:',
+      data.user?.email
+    );
+
+    setSession(data.session);
+
+    await loadProfile(data.session);
+  }
+
+  async function signOut() {
+    const { error } =
+      await supabase.auth.signOut();
 
     if (error) {
       console.error(
@@ -199,12 +241,12 @@ export function AuthProvider({
         error.message
       );
 
-      return;
+      throw error;
     }
 
     setSession(null);
     setRole(null);
-  };
+  }
 
   return (
     <AuthContext.Provider
@@ -212,6 +254,7 @@ export function AuthProvider({
         session,
         role,
         loading,
+        signIn,
         signOut,
       }}
     >

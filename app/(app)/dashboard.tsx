@@ -1,4 +1,6 @@
+
 import { useEffect, useState } from 'react';
+
 import {
   ActivityIndicator,
   Pressable,
@@ -7,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+
 import { router } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
@@ -34,12 +37,24 @@ export default function DashboardScreen() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    router.replace('/(auth)/login');
+    try {
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('SIGN OUT ERROR:', error.message);
+        return;
+      }
+
+      router.replace('/(auth)/login');
+    } catch (error) {
+      console.error('SIGN OUT ERROR:', error);
+    }
   };
 
   const getFirstName = () => {
-    if (!userEmail) return 'there';
+    if (!userEmail) {
+      return 'there';
+    }
 
     return userEmail
       .split('@')[0]
@@ -68,44 +83,75 @@ export default function DashboardScreen() {
 
             <View>
               <Text style={styles.logoText}>CARELINK</Text>
-              <Text style={styles.logoSubtitle}>Health System</Text>
+              <Text style={styles.logoSubtitle}>
+                Health System
+              </Text>
             </View>
           </View>
 
           {/* Navigation */}
           <View style={styles.navigation}>
-            <Text style={styles.navigationLabel}>MAIN MENU</Text>
+            <Text style={styles.navigationLabel}>
+              MAIN MENU
+            </Text>
 
-            <Pressable style={[styles.navItem, styles.activeNavItem]}>
+            <Pressable
+              style={[
+                styles.navItem,
+                styles.activeNavItem,
+              ]}
+            >
               <Text style={styles.navIcon}>⌂</Text>
-              <Text style={styles.activeNavText}>Dashboard</Text>
+
+              <Text style={styles.activeNavText}>
+                Dashboard
+              </Text>
             </Pressable>
 
             <Pressable
               style={styles.navItem}
-              onPress={() => router.push('/(app)/patients')}
+              onPress={() =>
+                router.push('/(app)/patients')
+              }
             >
               <Text style={styles.navIcon}>♙</Text>
-              <Text style={styles.navText}>Patients</Text>
+
+              <Text style={styles.navText}>
+                Patients
+              </Text>
             </Pressable>
 
             <Pressable style={styles.navItem}>
               <Text style={styles.navIcon}>▤</Text>
-              <Text style={styles.navText}>Medical Records</Text>
+
+              <Text style={styles.navText}>
+                Medical Records
+              </Text>
             </Pressable>
 
             <Pressable style={styles.navItem}>
               <Text style={styles.navIcon}>□</Text>
-              <Text style={styles.navText}>Appointments</Text>
+
+              <Text style={styles.navText}>
+                Appointments
+              </Text>
             </Pressable>
 
-            <Text style={[styles.navigationLabel, styles.secondLabel]}>
+            <Text
+              style={[
+                styles.navigationLabel,
+                styles.secondLabel,
+              ]}
+            >
               SERVICES
             </Text>
 
             <Pressable style={styles.navItem}>
               <Text style={styles.emergencyIcon}>!</Text>
-              <Text style={styles.navText}>Emergency</Text>
+
+              <Text style={styles.navText}>
+                Emergency
+              </Text>
             </Pressable>
           </View>
         </View>
@@ -114,15 +160,26 @@ export default function DashboardScreen() {
         <View>
           <Pressable
             style={styles.navItem}
-            onPress={() => router.push('/(app)/profile')}
+            onPress={() =>
+              router.push('/(app)/profile')
+            }
           >
             <Text style={styles.navIcon}>○</Text>
-            <Text style={styles.navText}>Profile</Text>
+
+            <Text style={styles.navText}>
+              Profile
+            </Text>
           </Pressable>
 
-          <Pressable style={styles.navItem} onPress={handleSignOut}>
+          <Pressable
+            style={styles.navItem}
+            onPress={handleSignOut}
+          >
             <Text style={styles.navIcon}>↪</Text>
-            <Text style={styles.navText}>Sign Out</Text>
+
+            <Text style={styles.navText}>
+              Sign Out
+            </Text>
           </Pressable>
         </View>
       </View>
@@ -132,15 +189,23 @@ export default function DashboardScreen() {
         {/* HEADER */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>CARELINK</Text>
+            <Text style={styles.headerTitle}>
+              CARELINK
+            </Text>
+
             <Text style={styles.headerSubtitle}>
               Electronic Health Records
             </Text>
           </View>
 
           <View style={styles.headerRight}>
-            <Pressable style={styles.notificationButton}>
-              <Text style={styles.notificationIcon}>♧</Text>
+            <Pressable
+              style={styles.notificationButton}
+            >
+              <Text style={styles.notificationIcon}>
+                ♧
+              </Text>
+
               <View style={styles.notificationDot} />
             </Pressable>
 
@@ -152,11 +217,18 @@ export default function DashboardScreen() {
               </View>
 
               <View>
-                <Text style={styles.profileName}>{getFirstName()}</Text>
-                <Text style={styles.profileRole}>Healthcare Worker</Text>
+                <Text style={styles.profileName}>
+                  {getFirstName()}
+                </Text>
+
+                <Text style={styles.profileRole}>
+                  Healthcare Worker
+                </Text>
               </View>
 
-              <Text style={styles.chevron}>⌄</Text>
+              <Text style={styles.chevron}>
+                ⌄
+              </Text>
             </View>
           </View>
         </View>
@@ -220,7 +292,10 @@ export default function DashboardScreen() {
           {/* QUICK ACTIONS */}
           <View style={styles.sectionHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Quick Actions</Text>
+              <Text style={styles.sectionTitle}>
+                Quick Actions
+              </Text>
+
               <Text style={styles.sectionSubtitle}>
                 Common tasks at your fingertips
               </Text>
@@ -232,7 +307,9 @@ export default function DashboardScreen() {
               icon="⌕"
               title="Find Patient"
               description="Search by ID or name"
-              onPress={() => router.push('/(app)/patients')}
+              onPress={() =>
+                router.push('/(app)/patients')
+              }
             />
 
             <ActionCard
@@ -255,16 +332,23 @@ export default function DashboardScreen() {
             <View style={styles.largeCard}>
               <View style={styles.cardHeader}>
                 <View>
-                  <Text style={styles.cardTitle}>Recent Patients</Text>
+                  <Text style={styles.cardTitle}>
+                    Recent Patients
+                  </Text>
+
                   <Text style={styles.cardSubtitle}>
                     Recently accessed records
                   </Text>
                 </View>
 
                 <Pressable
-                  onPress={() => router.push('/(app)/patients')}
+                  onPress={() =>
+                    router.push('/(app)/patients')
+                  }
                 >
-                  <Text style={styles.viewAll}>View all →</Text>
+                  <Text style={styles.viewAll}>
+                    View all →
+                  </Text>
                 </Pressable>
               </View>
 
@@ -301,7 +385,10 @@ export default function DashboardScreen() {
             <View style={styles.scheduleCard}>
               <View style={styles.cardHeader}>
                 <View>
-                  <Text style={styles.cardTitle}>Today's Schedule</Text>
+                  <Text style={styles.cardTitle}>
+                    Today's Schedule
+                  </Text>
+
                   <Text style={styles.cardSubtitle}>
                     Your upcoming appointments
                   </Text>
@@ -326,7 +413,9 @@ export default function DashboardScreen() {
                 type="Medical Review"
               />
 
-              <Pressable style={styles.scheduleButton}>
+              <Pressable
+                style={styles.scheduleButton}
+              >
                 <Text style={styles.scheduleButtonText}>
                   View Schedule →
                 </Text>
@@ -337,7 +426,9 @@ export default function DashboardScreen() {
           {/* EMERGENCY BANNER */}
           <View style={styles.emergencyBanner}>
             <View style={styles.emergencyBannerIcon}>
-              <Text style={styles.emergencyBannerIconText}>!</Text>
+              <Text style={styles.emergencyBannerIconText}>
+                !
+              </Text>
             </View>
 
             <View style={styles.emergencyContent}>
@@ -351,7 +442,9 @@ export default function DashboardScreen() {
               </Text>
             </View>
 
-            <Pressable style={styles.emergencyButton}>
+            <Pressable
+              style={styles.emergencyButton}
+            >
               <Text style={styles.emergencyButtonText}>
                 Identify Patient
               </Text>
@@ -403,15 +496,30 @@ function StatCard({
           { backgroundColor: iconBackground },
         ]}
       >
-        <Text style={[styles.statIconText, { color: iconColor }]}>
+        <Text
+          style={[
+            styles.statIconText,
+            { color: iconColor },
+          ]}
+        >
           {icon}
         </Text>
       </View>
 
-      <Text style={styles.statNumber}>{number}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
+      <Text style={styles.statNumber}>
+        {number}
+      </Text>
 
-      <Text style={[styles.statDetail, { color: iconColor }]}>
+      <Text style={styles.statLabel}>
+        {label}
+      </Text>
+
+      <Text
+        style={[
+          styles.statDetail,
+          { color: iconColor },
+        ]}
+      >
         {detail}
       </Text>
     </View>
@@ -452,7 +560,8 @@ function ActionCard({
         <Text
           style={[
             styles.actionIconText,
-            emergency && styles.emergencyActionIconText,
+            emergency &&
+              styles.emergencyActionIconText,
           ]}
         >
           {icon}
@@ -460,11 +569,18 @@ function ActionCard({
       </View>
 
       <View style={styles.actionTextContainer}>
-        <Text style={styles.actionTitle}>{title}</Text>
-        <Text style={styles.actionDescription}>{description}</Text>
+        <Text style={styles.actionTitle}>
+          {title}
+        </Text>
+
+        <Text style={styles.actionDescription}>
+          {description}
+        </Text>
       </View>
 
-      <Text style={styles.actionArrow}>→</Text>
+      <Text style={styles.actionArrow}>
+        →
+      </Text>
     </Pressable>
   );
 }
@@ -487,17 +603,27 @@ function PatientRow({
   return (
     <Pressable style={styles.patientRow}>
       <View style={styles.patientAvatar}>
-        <Text style={styles.patientAvatarText}>{initials}</Text>
+        <Text style={styles.patientAvatarText}>
+          {initials}
+        </Text>
       </View>
 
       <View style={styles.patientInfo}>
-        <Text style={styles.patientName}>{name}</Text>
-        <Text style={styles.patientId}>{patientId}</Text>
+        <Text style={styles.patientName}>
+          {name}
+        </Text>
+
+        <Text style={styles.patientId}>
+          {patientId}
+        </Text>
       </View>
 
       <View style={styles.patientTimeContainer}>
         <View style={styles.activeDot} />
-        <Text style={styles.patientTime}>{time}</Text>
+
+        <Text style={styles.patientTime}>
+          {time}
+        </Text>
       </View>
     </Pressable>
   );
@@ -519,14 +645,21 @@ function Appointment({
   return (
     <View style={styles.appointment}>
       <View style={styles.timeContainer}>
-        <Text style={styles.appointmentTime}>{time}</Text>
+        <Text style={styles.appointmentTime}>
+          {time}
+        </Text>
       </View>
 
       <View style={styles.appointmentLine} />
 
       <View style={styles.appointmentInfo}>
-        <Text style={styles.appointmentName}>{name}</Text>
-        <Text style={styles.appointmentType}>{type}</Text>
+        <Text style={styles.appointmentName}>
+          {name}
+        </Text>
+
+        <Text style={styles.appointmentType}>
+          {type}
+        </Text>
       </View>
     </View>
   );
@@ -549,8 +682,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
   },
-
-  /* SIDEBAR */
 
   sidebar: {
     width: 245,
@@ -649,8 +780,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
   },
-
-  /* MAIN */
 
   main: {
     flex: 1,
@@ -751,8 +880,6 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
 
-  /* CONTENT */
-
   scrollView: {
     flex: 1,
   },
@@ -777,8 +904,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 6,
   },
-
-  /* STATS */
 
   statsGrid: {
     flexDirection: 'row',
@@ -832,8 +957,6 @@ const styles = StyleSheet.create({
     marginTop: 9,
   },
 
-  /* SECTIONS */
-
   sectionHeader: {
     marginBottom: 14,
   },
@@ -849,8 +972,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 3,
   },
-
-  /* QUICK ACTIONS */
 
   quickActions: {
     flexDirection: 'row',
@@ -921,8 +1042,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 
-  /* LOWER GRID */
-
   lowerGrid: {
     flexDirection: 'row',
     gap: 18,
@@ -971,8 +1090,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-
-  /* PATIENTS */
 
   patientRow: {
     minHeight: 64,
@@ -1032,8 +1149,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
 
-  /* APPOINTMENTS */
-
   appointment: {
     flexDirection: 'row',
     minHeight: 65,
@@ -1084,8 +1199,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-
-  /* EMERGENCY */
 
   emergencyBanner: {
     backgroundColor: '#FFF7F7',
@@ -1154,3 +1267,4 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
 });
+

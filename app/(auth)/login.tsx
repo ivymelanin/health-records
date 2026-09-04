@@ -12,12 +12,17 @@ import {
 import { useState } from 'react';
 import { Link, router } from 'expo-router';
 
-import { supabase } from '../../lib/supabase';
+import { useAuth } from '../../context/AuthContext';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const {
+    signIn,
+    role,
+  } = useAuth();
 
   const handleLogin = async () => {
     if (!email.trim() || !password) {
@@ -31,123 +36,23 @@ export default function LoginScreen() {
     try {
       setLoading(true);
 
-      console.log('LOGIN: attempting...');
+      console.log(
+        'LOGIN SCREEN: attempting login'
+      );
 
-      const { data, error } =
-        await supabase.auth.signInWithPassword({
-          email: email.trim(),
-          password,
-        });
-
-      if (error) {
-        console.error(
-          'LOGIN ERROR:',
-          error.message
-        );
-
-        Alert.alert(
-          'Login failed',
-          error.message
-        );
-
-        return;
-      }
-
-      const user = data.user;
-      const session = data.session;
-
-      if (!user || !session) {
-        Alert.alert(
-          'Login failed',
-          'No authenticated session was returned.'
-        );
-
-        return;
-      }
+      await signIn(
+        email.trim(),
+        password
+      );
 
       console.log(
-        'LOGIN SUCCESS:',
-        user.id
+        'LOGIN SCREEN: authentication successful'
       );
 
       /*
-       * TEMPORARY POSTMAN TESTING
-       *
-       * Supabase creates this JWT for the
-       * authenticated user.
-       *
-       * DO NOT put this token in your source code.
-       * Remove this console.log after testing.
+       * AuthContext loads the user's role
+       * from the profiles table after login.
        */
-      console.log(
-        '=============================='
-      );
-
-      console.log(
-        'SUPABASE ACCESS TOKEN:'
-      );
-
-      console.log(
-        session.access_token
-      );
-
-      console.log(
-        '=============================='
-      );
-
-      // ------------------------------------
-      // Get user's role
-      // ------------------------------------
-
-      const {
-        data: profile,
-        error: profileError,
-      } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.error(
-          'PROFILE ERROR:',
-          profileError.message
-        );
-
-        await supabase.auth.signOut();
-
-        Alert.alert(
-          'Login error',
-          'Unable to determine your user role.'
-        );
-
-        return;
-      }
-
-      if (!profile) {
-        await supabase.auth.signOut();
-
-        Alert.alert(
-          'Account setup error',
-          'Your user profile does not exist.'
-        );
-
-        return;
-      }
-
-      const role =
-        typeof profile.role === 'string'
-          ? profile.role.trim().toLowerCase()
-          : '';
-
-      console.log(
-        'USER ROLE:',
-        role
-      );
-
-      // ------------------------------------
-      // ADMIN DASHBOARD
-      // ------------------------------------
 
       if (role === 'admin') {
         console.log(
@@ -160,10 +65,6 @@ export default function LoginScreen() {
 
         return;
       }
-
-      // ------------------------------------
-      // HEALTHCARE WORKER DASHBOARD
-      // ------------------------------------
 
       if (
         role === 'healthcare_worker'
@@ -179,25 +80,25 @@ export default function LoginScreen() {
         return;
       }
 
-      // ------------------------------------
-      // Invalid role
-      // ------------------------------------
-
-      await supabase.auth.signOut();
+      /*
+       * If the user has no valid role,
+       * do not allow them into the application.
+       */
 
       Alert.alert(
         'Access denied',
-        `Invalid application role: ${profile.role}`
+        'Your account does not have a valid application role.'
       );
-    } catch (error) {
+    } catch (error: any) {
       console.error(
-        'LOGIN EXCEPTION:',
+        'LOGIN SCREEN ERROR:',
         error
       );
 
       Alert.alert(
-        'Error',
-        'Something went wrong while logging in.'
+        'Login failed',
+        error?.message ||
+          'Unable to sign in.'
       );
     } finally {
       setLoading(false);
@@ -206,7 +107,6 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-
       <Text style={styles.logo}>
         MediVault
       </Text>
@@ -264,7 +164,6 @@ export default function LoginScreen() {
       >
         Don't have an account? Register
       </Link>
-
     </View>
   );
 }
