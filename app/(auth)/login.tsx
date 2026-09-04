@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 
 import { useState } from 'react';
-import { Link, router } from 'expo-router';
+import { router } from 'expo-router';
 
 import { supabase } from '../../lib/supabase';
 
@@ -18,7 +18,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async () => {
+const handleLogin = async () => {
+  // Check that the user entered both fields
   if (!email.trim() || !password) {
     Alert.alert(
       'Missing information',
@@ -32,12 +33,13 @@ export default function LoginScreen() {
 
     console.log('LOGIN: attempting...');
 
-    // 1. Sign in with Supabase
+    // 1. Sign in using Supabase Auth
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
 
+    // Login failed
     if (error) {
       console.error('LOGIN ERROR:', error.message);
 
@@ -45,27 +47,31 @@ export default function LoginScreen() {
       return;
     }
 
-    // Make sure we actually received a user
+    // Make sure we have a user
     if (!data.user) {
-      Alert.alert('Login failed', 'User information could not be loaded.');
+      Alert.alert(
+        'Login failed',
+        'User account could not be found.'
+      );
       return;
     }
 
     console.log('LOGIN SUCCESS:', data.user.id);
 
-    // 2. Get the user's role from the profiles table
+    // 2. Get this user's profile and role
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', data.user.id)
       .single();
 
+    // Profile/role could not be found
     if (profileError) {
       console.error('PROFILE ERROR:', profileError.message);
 
       Alert.alert(
         'Login error',
-        'Your account role could not be determined.'
+        'Your user profile or role could not be found.'
       );
 
       return;
@@ -73,19 +79,16 @@ export default function LoginScreen() {
 
     console.log('USER ROLE:', profile.role);
 
-    // 3. Redirect according to role
+    // 3. Send the user to the correct dashboard
     if (profile.role === 'admin') {
-      router.replace('/admin');
-    } 
-    else if (profile.role === 'healthworker') {
-      router.replace('/dashboard');
-    } 
-    else if (profile.role === 'patient') {
-      router.replace('/patient/dashboard');
-    } 
+  router.replace('/(app)/admin');
+}
+else if (profile.role === 'healthcare_worker') {
+  router.replace('/(app)/dashboard');
+}
     else {
       Alert.alert(
-        'Account error',
+        'Invalid role',
         'Your account does not have a valid role assigned.'
       );
     }
@@ -142,6 +145,16 @@ export default function LoginScreen() {
         secureTextEntry
         editable={!loading}
       />
+      {/* FORGOT PASSWORD */}
+       <TouchableOpacity
+       onPress={() => router.push('/(auth)/forgot-password')}
+       disabled={loading}
+>
+        <Text style={styles.forgotPassword}>
+           Forgot Password?
+        </Text>
+       </TouchableOpacity>
+
 
       {/* SIGN IN BUTTON */}
       <TouchableOpacity
@@ -163,18 +176,7 @@ export default function LoginScreen() {
       </TouchableOpacity>
 
       {/* REGISTER LINK */}
-      <View style={styles.registerContainer}>
-        <Text style={styles.registerText}>
-          Don't have an account?{' '}
-        </Text>
-
-        <Link
-          href="/(auth)/register"
-          style={styles.registerLink}
-        >
-          Register
-        </Link>
-      </View>
+      
 
     </View>
   );
@@ -241,21 +243,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
 
-  registerContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginTop: 22,
-  },
-
-  registerText: {
-    fontSize: 15,
-    color: '#64748b',
-  },
-
-  registerLink: {
-    fontSize: 15,
-    color: '#2563eb',
-    fontWeight: '600',
-  },
+  
+  forgotPassword: {
+  color: '#2563eb',
+  fontSize: 14,
+  fontWeight: '600',
+  textAlign: 'right',
+  marginBottom: 8,
+},
 });
