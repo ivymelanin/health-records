@@ -1,4 +1,7 @@
-import { useState } from 'react';
+import { createPatient } from '../../services/patientService';
+import { getSAIdDetails } from '../../utils/saIdDetails';
+import { supabase } from '../../lib/supabase';
+import React, { useEffect, useState } from 'react';
 import {
   Image,
   Modal,
@@ -16,6 +19,15 @@ type Patient = {
   doctor: string;
   status: 'Assigned' | 'Unassigned';
   created: string;
+};
+type HealthcareWorker = {
+  id: string;
+  first_name: string;
+  last_name: string;
+  role: string;
+  department: string | null;
+  facility: string;
+  active: boolean;
 };
 
 const doctors = [
@@ -55,8 +67,9 @@ const initialPatients: Patient[] = [
 export default function AdminDashboard() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
-  const [patients, setPatients] =
-    useState<Patient[]>(initialPatients);
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [healthcareWorkers, setHealthcareWorkers] =
+  useState<HealthcareWorker[]>([]);
 
   const [showAddPatient, setShowAddPatient] = useState(false);
 
@@ -71,7 +84,8 @@ export default function AdminDashboard() {
 
   const [search, setSearch] = useState('');
 
-  const [patientName, setPatientName] = useState('');
+  const [patientFirstName, setPatientFirstName] = useState('');
+const [patientLastName, setPatientLastName] = useState('');
 
   const [patientIdNumber, setPatientIdNumber] = useState('');
 
@@ -88,42 +102,106 @@ export default function AdminDashboard() {
 
     return `CL-${String(nextNumber).padStart(4, '0')}`;
   };
+const fetchPatients = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('patients')
+      .select('id, file_number, created_at')
+      .order('created_at', { ascending: false });
 
-  const addPatient = () => {
-    if (!patientName.trim() || !patientIdNumber.trim()) {
-      return;
+    if (error) {
+      throw error;
     }
 
-    const newPatientNumber = generatePatientNumber();
+    setPatients(
+  (data ?? []).map((patient) => ({
+    id: patient.file_number ?? patient.id,
+    doctor: 'Unassigned',
+    status: 'Unassigned',
+    created: new Date(patient.created_at).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    }),
+  }))
+);
 
-    const newPatient: Patient = {
-      id: newPatientNumber,
-      doctor: 'Unassigned',
-      status: 'Unassigned',
-      created: '03 Sep 2026',
-    };
+console.log('Patients loaded:', data);
+  } catch (error) {
+    console.error('Error fetching patients:', error);
+  }
+};
+useEffect(() => {
+  fetchPatients();
+}, []);
 
-    setPatients((current) => [...current, newPatient]);
 
-    /*
-     * Important:
-     * The admin should NOT be shown the patient's personal
-     * information after registration.
-     */
 
-    setPatientName('');
-    setPatientIdNumber('');
+ const addPatient = async () => {
+  if (
+    !patientFirstName.trim() ||
+    !patientLastName.trim() ||
+    !patientIdNumber.trim()
+  ) {
+    return;
+  }
 
-    setShowAddPatient(false);
+try {
+  const idDetails = getSAIdDetails(patientIdNumber.trim());
 
+  if (!idDetails) {
     setSuccessMessage(
-      `Patient registered successfully. File Number: ${newPatientNumber}`
+      'Invalid South African ID number. Please check the ID number.'
     );
 
     setTimeout(() => {
       setSuccessMessage('');
     }, 5000);
-  };
+
+    return;
+  }
+
+  const patient = await createPatient({
+    first_name: patientFirstName.trim(),
+    last_name: patientLastName.trim(),
+    id_number: patientIdNumber.trim(),
+    date_of_birth: idDetails.dateOfBirth,
+    gender: idDetails.gender,
+  });
+
+    setPatientFirstName('');
+    setPatientLastName('');
+    setPatientIdNumber('');
+    setShowAddPatient(false);
+
+    setSuccessMessage(
+  `Patient registered successfully. File Number: ${patient.file_number}`
+);
+
+    setTimeout(() => {
+      setSuccessMessage('');
+    }, 5000);
+  } catch (error) {
+  console.error('Error creating patient:', error);
+
+  if (
+    error instanceof Error &&
+    error.message.includes('patients_id_number_key')
+  ) {
+    setSuccessMessage(
+      'A patient with this South African ID number already exists.'
+    );
+  } else {
+    setSuccessMessage(
+      'Unable to register patient. Please try again.'
+    );
+  }
+
+  setTimeout(() => {
+    setSuccessMessage('');
+  }, 5000);
+}
+};
 
   const openAssignDoctor = (patient: Patient) => {
     setSelectedPatient(patient);
@@ -817,17 +895,25 @@ export default function AdminDashboard() {
 
             </View>
 
-            <Text style={styles.inputLabel}>
-              Patient Name
-            </Text>
+            <Text style={styles.inputLabel}>First Name</Text>
 
-            <TextInput
-              value={patientName}
-              onChangeText={setPatientName}
-              placeholder="Enter patient name"
-              placeholderTextColor="#94A3B8"
-              style={styles.input}
-            />
+<TextInput
+  value={patientFirstName}
+  onChangeText={setPatientFirstName}
+  placeholder="Enter first name"
+  placeholderTextColor="#94A3B8"
+  style={styles.input}
+/>
+
+<Text style={styles.inputLabel}>Last Name</Text>
+
+<TextInput
+  value={patientLastName}
+  onChangeText={setPatientLastName}
+  placeholder="Enter last name"
+  placeholderTextColor="#94A3B8"
+  style={styles.input}
+/>
 
             <Text style={styles.inputLabel}>
               South African ID Number
@@ -845,30 +931,21 @@ export default function AdminDashboard() {
 
             <View style={styles.modalButtons}>
 
-              <Pressable
-                style={styles.cancelButton}
-                onPress={() =>
-                  setShowAddPatient(false)
-                }
-              >
-                <Text style={styles.cancelButtonText}>
-                  Cancel
-                </Text>
-              </Pressable>
-
-              <Pressable
-                style={[
-                  styles.createButton,
-                  (!patientName.trim() ||
-                    !patientIdNumber.trim()) &&
-                    styles.disabledButton,
-                ]}
-                disabled={
-                  !patientName.trim() ||
-                  !patientIdNumber.trim()
-                }
-                onPress={addPatient}
-              >
+             <Pressable
+  style={[
+    styles.createButton,
+    (!patientFirstName.trim() ||
+      !patientLastName.trim() ||
+      !patientIdNumber.trim()) &&
+      styles.disabledButton,
+  ]}
+  disabled={
+    !patientFirstName.trim() ||
+    !patientLastName.trim() ||
+    !patientIdNumber.trim()
+  }
+  onPress={addPatient}
+>
                 <Text style={styles.createButtonText}>
                   Create Patient File
                 </Text>

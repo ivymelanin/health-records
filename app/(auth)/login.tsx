@@ -77,12 +77,12 @@ export default function LoginScreen() {
     if (profile.role === 'admin') {
       router.replace('/admin');
     } 
-    else if (profile.role === 'healthworker') {
-      router.replace('/dashboard');
-    } 
-    else if (profile.role === 'patient') {
+    else if (profile.role === 'healthcare_worker') {
+  router.replace('/dashboard');
+}
+    /*else if (profile.role === 'patient') {
       router.replace('/patient/dashboard');
-    } 
+    } */
     else {
       Alert.alert(
         'Account error',
