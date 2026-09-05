@@ -180,7 +180,7 @@ export default function AdminDashboard() {
               return;
             }
 
-            router.replace('/(auth)/login');
+            router.replace('(auth)/login');
           },
         },
       ]
@@ -1451,7 +1451,6 @@ export default function AdminDashboard() {
           >
             <Text
               style={styles.logoutIcon}
-              
             >
               ⇥
             </Text>
