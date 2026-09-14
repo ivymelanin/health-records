@@ -498,6 +498,67 @@ export default function PatientsScreen() {
       setTimeout(() => setSuccessMessage(''), 5000);
     }
   };
+  const enrollBiometric = async () => {
+  if (!patient) return;
+
+  try {
+    setLoading(true);
+
+    // Create a temporary biometric reference.
+    // A real biometric scanner/service will provide this later.
+    const biometricReference =
+      `BIO-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
+
+    const { error } = await supabase
+      .from('patients')
+      .update({
+        biometric_reference: biometricReference,
+        biometric_enrolled: true,
+        biometric_enrolled_at: new Date().toISOString(),
+      })
+      .eq('id', patient.id);
+
+    if (error) {
+      console.error(
+        'BIOMETRIC ENROLLMENT ERROR:',
+        error.message
+      );
+
+      Alert.alert(
+        'Enrollment failed',
+        'Unable to enroll the patient for biometric verification.'
+      );
+
+      return;
+    }
+
+    // Update the patient currently displayed on screen
+    setPatient({
+      ...patient,
+      biometric_reference: biometricReference,
+      biometric_enrolled: true,
+      biometric_enrolled_at: new Date().toISOString(),
+    });
+
+    Alert.alert(
+      'Biometric enrolled',
+      `${patient.first_name} ${patient.last_name} has been enrolled successfully.`
+    );
+
+  } catch (error) {
+    console.error(
+      'BIOMETRIC ENROLLMENT EXCEPTION:',
+      error
+    );
+
+    Alert.alert(
+      'Error',
+      'Unable to complete biometric enrollment.'
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   // =========================================
   // FILTERS

@@ -5,10 +5,12 @@
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@react-native-ml-kit/text-recognition": "^2.0.0",
     "@supabase/supabase-js": "^2.112.3",
     "expo": "~54.0.0",
     "expo-camera": "~16.0.18",
     "expo-constants": "~18.0.14",
+    "expo-image-manipulator": "~14.0.8",
     "expo-linking": "~8.0.12",
     "expo-local-authentication": "~17.0.9",
     "expo-router": "~6.0.24",
