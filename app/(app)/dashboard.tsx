@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Modal,
   Pressable,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -118,19 +120,16 @@ export default function DashboardScreen() {
   const [medicalRecords, setMedicalRecords] = useState<MedicalRecord[]>([]);
   const [loadingRecords, setLoadingRecords] = useState(false);
   const [isTakingEncounter, setIsTakingEncounter] = useState(false);
+  const [isCompletingEncounter, setIsCompletingEncounter] = useState(false);
+
+  // Patient full history
+  const [patientHistory, setPatientHistory] = useState<Encounter[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   // Medical record creation
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [recordType, setRecordType] = useState('');
   const [recordContent, setRecordContent] = useState('');
-  const [recordTypes, setRecordTypes] = useState<string[]>([
-    'observation',
-    'diagnosis',
-    'clinical_note',
-    'lab_request',
-    'radiology_request',
-    'prescription',
-  ]);
   const [availableRecordTypes, setAvailableRecordTypes] = useState<string[]>([]);
 
   // Success/Error messages
@@ -158,7 +157,6 @@ export default function DashboardScreen() {
 
       setUserEmail(user.email ?? '');
 
-      // Load profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('id, first_name, last_name, role')
@@ -169,7 +167,6 @@ export default function DashboardScreen() {
 
       setUserProfile(profile);
 
-      // Set available record types based on role
       const role = profile?.role?.toLowerCase() || '';
       const types = ['observation', 'clinical_note'];
 
@@ -188,7 +185,6 @@ export default function DashboardScreen() {
 
       setAvailableRecordTypes(types);
 
-      // Load dashboard data
       await loadDashboardData();
 
     } catch (error) {
@@ -211,7 +207,6 @@ export default function DashboardScreen() {
       const tomorrow = new Date(today);
       tomorrow.setDate(tomorrow.getDate() + 1);
 
-      // Fetch all active encounters with patient data
       const { data: encounters, error } = await supabase
         .from('patient_encounters')
         .select(`
@@ -248,7 +243,6 @@ export default function DashboardScreen() {
 
       if (error) throw error;
 
-      // Transform data
       const transformedEncounters = (encounters || []).map((enc: any) => ({
         id: enc.id,
         patient_id: enc.patient_id,
@@ -277,10 +271,9 @@ export default function DashboardScreen() {
           identity_verified: enc.patients.identity_verified,
         },
         facility_name: enc.facilities?.name || 'Unknown Facility',
-        healthcare_worker_name: null,
+        healthcare_worker_name: null as string | null,
       }));
 
-      // Get healthcare worker names
       const workerIds = transformedEncounters
         .map(e => e.healthcare_worker_id)
         .filter(Boolean);
@@ -306,19 +299,16 @@ export default function DashboardScreen() {
 
       setActiveEncounters(transformedEncounters);
 
-      // Filter my encounters
       const my = transformedEncounters.filter(
         e => e.healthcare_worker_id === userProfile?.id
       );
       setMyEncounters(my);
 
-      // Filter waiting encounters
       const waiting = transformedEncounters.filter(
         e => e.healthcare_worker_id === null
       );
       setWaitingEncounters(waiting);
 
-      // Fetch completed today
       const { data: completed, error: completedError } = await supabase
         .from('patient_encounters')
         .select(`
@@ -389,7 +379,6 @@ export default function DashboardScreen() {
         setCompletedToday(transformedCompleted);
       }
 
-      // Update stats
       setStats({
         active: transformedEncounters.length,
         myActive: my.length,
@@ -445,14 +434,106 @@ export default function DashboardScreen() {
       if (result.success) {
         console.log('Fingerprint authentication successful');
         alert('Fingerprint verified successfully!');
-        // Later: use biometric to find patient record
+
       } else {
         console.log('Fingerprint authentication failed:', result);
         alert('Fingerprint verification was cancelled or unsuccessful.');
+// Later: use biometric to find patient record
       }
     } catch (error) {
       console.error('FINGERPRINT ERROR:', error);
       alert('Unable to start fingerprint verification.');
+    }
+  };
+
+  /* ==========================================================
+     LOAD PATIENT HISTORY
+  ========================================================== */
+
+  const loadPatientHistory = async (patientId: string) => {
+    try {
+      setLoadingHistory(true);
+
+      const { data: encounters, error } = await supabase
+        .from('patient_encounters')
+        .select(`
+          id,
+          patient_id,
+          facility_id,
+          healthcare_worker_id,
+          department,
+          reason,
+          status,
+          check_in_at,
+          check_out_at,
+          created_at,
+          facilities:facility_id (name)
+        `)
+        .eq('patient_id', patientId)
+        .order('check_in_at', { ascending: false });
+
+      if (error) throw error;
+
+      const workerIds = (encounters || [])
+        .map(e => e.healthcare_worker_id)
+        .filter(Boolean);
+
+      let workerMap = new Map();
+
+      if (workerIds.length > 0) {
+        const { data: workers, error: workerError } = await supabase
+          .from('profiles')
+          .select('id, first_name, last_name')
+          .in('id', workerIds);
+
+        if (!workerError) {
+          workerMap = new Map(workers.map(w => [w.id, w]));
+        }
+      }
+
+      const transformedHistory = (encounters || []).map((enc: any) => {
+        const worker = enc.healthcare_worker_id ? workerMap.get(enc.healthcare_worker_id) : null;
+        const workerName = worker ? `${worker.first_name} ${worker.last_name}` : 'Awaiting Healthcare Worker';
+
+        return {
+          id: enc.id,
+          patient_id: enc.patient_id,
+          facility_id: enc.facility_id,
+          healthcare_worker_id: enc.healthcare_worker_id,
+          department: enc.department,
+          reason: enc.reason,
+          status: enc.status,
+          check_in_at: enc.check_in_at,
+          check_out_at: enc.check_out_at,
+          created_at: enc.created_at,
+          patient: selectedEncounter?.patient || {
+            id: '',
+            file_number: null,
+            id_number: '',
+            first_name: '',
+            last_name: '',
+            date_of_birth: null,
+            gender: null,
+            phone_number: null,
+            address: null,
+            emergency_contact_name: null,
+            emergency_contact_phone: null,
+            biometric_enrolled: false,
+            biometric_enrolled_at: null,
+            identity_verified: false,
+          },
+          facility_name: enc.facilities?.name || 'Unknown Facility',
+          healthcare_worker_name: workerName,
+        };
+      });
+
+      setPatientHistory(transformedHistory);
+    } catch (error) {
+      console.error('Error loading patient history:', error);
+      setErrorMessage('Unable to load patient history.');
+      setTimeout(() => setErrorMessage(''), 5000);
+    } finally {
+      setLoadingHistory(false);
     }
   };
 
@@ -464,6 +545,7 @@ export default function DashboardScreen() {
     setSelectedEncounter(encounter);
     setShowEncounterWorkspace(true);
     await loadMedicalRecords(encounter.id);
+    await loadPatientHistory(encounter.patient_id);
   };
 
   /* ==========================================================
@@ -491,7 +573,6 @@ export default function DashboardScreen() {
 
       if (error) throw error;
 
-      // Get creator names
       const creatorIds = (records || []).map(r => r.created_by).filter(Boolean);
       let creatorMap = new Map();
 
@@ -536,19 +617,33 @@ export default function DashboardScreen() {
   ========================================================== */
 
   const takeEncounter = async (encounter: Encounter) => {
-    if (!userProfile) return;
+    if (!userProfile) {
+      setErrorMessage('You must be logged in to take an encounter.');
+      setTimeout(() => setErrorMessage(''), 5000);
+      return;
+    }
 
     try {
       setIsTakingEncounter(true);
 
-      // First, check if the encounter is still active and not taken
       const { data: current, error: checkError } = await supabase
         .from('patient_encounters')
         .select('id, status, healthcare_worker_id')
         .eq('id', encounter.id)
         .single();
 
-      if (checkError) throw checkError;
+      if (checkError) {
+        console.error('Error checking encounter:', checkError);
+        setErrorMessage('Unable to verify encounter status. Please try again.');
+        setTimeout(() => setErrorMessage(''), 5000);
+        return;
+      }
+
+      if (!current) {
+        setErrorMessage('Encounter not found.');
+        setTimeout(() => setErrorMessage(''), 5000);
+        return;
+      }
 
       if (current.status !== 'active') {
         setErrorMessage('This encounter is no longer active.');
@@ -557,29 +652,53 @@ export default function DashboardScreen() {
       }
 
       if (current.healthcare_worker_id) {
-        setErrorMessage('This encounter has already been taken by another healthcare worker.');
+        const { data: worker, error: workerError } = await supabase
+          .from('profiles')
+          .select('first_name, last_name')
+          .eq('id', current.healthcare_worker_id)
+          .single();
+
+        const workerName = workerError 
+          ? 'another healthcare worker' 
+          : `${worker.first_name} ${worker.last_name}`;
+
+        setErrorMessage(`This encounter has already been taken by ${workerName}.`);
         setTimeout(() => setErrorMessage(''), 5000);
+        await loadDashboardData();
         return;
       }
 
-      // Take the encounter
       const { error: updateError } = await supabase
         .from('patient_encounters')
         .update({
           healthcare_worker_id: userProfile.id,
         })
         .eq('id', encounter.id)
-        .eq('healthcare_worker_id', null); // Ensure no race condition
+        .is('healthcare_worker_id', null);
 
-      if (updateError) throw updateError;
-
-      // Refresh data
-      await loadDashboardData();
-      if (selectedEncounter) {
-        await openEncounterWorkspace({ ...selectedEncounter, healthcare_worker_id: userProfile.id });
+      if (updateError) {
+        console.error('Update error:', updateError);
+        if (updateError.code === 'PGRST204' || updateError.message?.includes('conflict')) {
+          setErrorMessage('This encounter was just taken by another healthcare worker.');
+        } else {
+          setErrorMessage('Unable to take encounter. Please try again.');
+        }
+        setTimeout(() => setErrorMessage(''), 5000);
+        await loadDashboardData();
+        return;
       }
 
-      setSuccessMessage('Encounter taken successfully!');
+      await loadDashboardData();
+      
+      if (selectedEncounter && selectedEncounter.id === encounter.id) {
+        setSelectedEncounter({
+          ...selectedEncounter,
+          healthcare_worker_id: userProfile.id,
+          healthcare_worker_name: `${userProfile.first_name} ${userProfile.last_name}`,
+        });
+      }
+
+      setSuccessMessage(`Encounter taken successfully!`);
       setTimeout(() => setSuccessMessage(''), 5000);
     } catch (error) {
       console.error('Error taking encounter:', error);
@@ -617,10 +736,8 @@ export default function DashboardScreen() {
 
       if (error) throw error;
 
-      // Refresh medical records
       await loadMedicalRecords(selectedEncounter.id);
 
-      // Reset form
       setShowAddRecord(false);
       setRecordType('');
       setRecordContent('');
@@ -639,26 +756,92 @@ export default function DashboardScreen() {
   ========================================================== */
 
   const completeEncounter = async () => {
-    if (!selectedEncounter) return;
+    if (!selectedEncounter) {
+      setErrorMessage('No encounter selected.');
+      setTimeout(() => setErrorMessage(''), 5000);
+      return;
+    }
+
+    if (!userProfile) {
+      setErrorMessage('You must be logged in to complete an encounter.');
+      setTimeout(() => setErrorMessage(''), 5000);
+      return;
+    }
+
+    if (selectedEncounter.status === 'completed') {
+      setErrorMessage('This encounter is already completed.');
+      setTimeout(() => setErrorMessage(''), 5000);
+      return;
+    }
+
+    if (selectedEncounter.healthcare_worker_id !== userProfile.id) {
+      setErrorMessage('You can only complete encounters assigned to you.');
+      setTimeout(() => setErrorMessage(''), 5000);
+      return;
+    }
+
+    Alert.alert(
+      'Complete Encounter',
+      `Are you sure you want to complete this encounter for ${selectedEncounter.patient.first_name} ${selectedEncounter.patient.last_name}?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel',
+        },
+        {
+          text: 'Complete',
+          style: 'default',
+          onPress: async () => {
+            await performCompleteEncounter();
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
+  const performCompleteEncounter = async () => {
+    if (!selectedEncounter || !userProfile) return;
 
     try {
+      setIsCompletingEncounter(true);
+
       const now = new Date().toISOString();
 
-      const { error } = await supabase
+      const { data: updated, error } = await supabase
         .from('patient_encounters')
         .update({
           status: 'completed',
           check_out_at: now,
         })
         .eq('id', selectedEncounter.id)
-        .eq('status', 'active');
+        .eq('status', 'active')
+        .eq('healthcare_worker_id', userProfile.id)
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Update error:', error);
+        if (error.code === 'PGRST204') {
+          setErrorMessage('This encounter may have been modified by another user.');
+        } else {
+          setErrorMessage('Unable to complete encounter. Please try again.');
+        }
+        setTimeout(() => setErrorMessage(''), 5000);
+        return;
+      }
 
-      // Refresh data
+      if (!updated) {
+        setErrorMessage('Unable to complete encounter. It may have been already completed or assigned to another worker.');
+        setTimeout(() => setErrorMessage(''), 5000);
+        return;
+      }
+
       await loadDashboardData();
       setShowEncounterWorkspace(false);
       setSelectedEncounter(null);
+      setMedicalRecords([]);
+      setPatientHistory([]);
 
       setSuccessMessage('Encounter completed successfully!');
       setTimeout(() => setSuccessMessage(''), 5000);
@@ -666,25 +849,25 @@ export default function DashboardScreen() {
       console.error('Error completing encounter:', error);
       setErrorMessage('Unable to complete encounter. Please try again.');
       setTimeout(() => setErrorMessage(''), 5000);
+    } finally {
+      setIsCompletingEncounter(false);
     }
   };
 
   /* ==========================================================
-     GET ROLE DISPLAY
+     HELPERS
   ========================================================== */
 
   const getRoleDisplay = () => {
     if (!userProfile?.role) return 'Healthcare Worker';
     const roleMap: Record<string, string> = {
       admin: 'Admin',
-      administrator: 'Admin',
       doctor: 'Doctor',
       nurse: 'Nurse',
       paramedic: 'Paramedic',
       laboratory: 'Laboratory',
       radiology: 'Radiology',
       pharmacist: 'Pharmacist',
-      'healthcare worker': 'Healthcare Worker',
     };
     return roleMap[userProfile.role.trim().toLowerCase()] ?? userProfile.role;
   };
@@ -693,10 +876,6 @@ export default function DashboardScreen() {
     if (!userProfile?.first_name) return 'User';
     return userProfile.first_name;
   };
-
-  /* ==========================================================
-     FORMAT DATE/TIME
-  ========================================================== */
 
   const formatDate = (date: string) => {
     return new Date(date).toLocaleDateString('en-GB', {
@@ -717,10 +896,6 @@ export default function DashboardScreen() {
     return `${formatDate(date)} ${formatTime(date)}`;
   };
 
-  /* ==========================================================
-     GET STATUS COLOR
-  ========================================================== */
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'active':
@@ -736,10 +911,6 @@ export default function DashboardScreen() {
     return status.charAt(0).toUpperCase() + status.slice(1);
   };
 
-  /* ==========================================================
-     GET RECORD TYPE LABEL
-  ========================================================== */
-
   const getRecordTypeLabel = (type: string) => {
     const map: Record<string, string> = {
       observation: 'Observation',
@@ -751,10 +922,6 @@ export default function DashboardScreen() {
     };
     return map[type] || type;
   };
-
-  /* ==========================================================
-     SIGN OUT
-  ========================================================== */
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
@@ -778,9 +945,24 @@ export default function DashboardScreen() {
      RENDER ENCOUNTER CARD
   ========================================================== */
 
-  const renderEncounterCard = (encounter: Encounter, showTakeButton = false) => {
+  const renderEncounterCard = (encounter: Encounter) => {
     const isWaiting = encounter.healthcare_worker_id === null;
     const isMine = encounter.healthcare_worker_id === userProfile?.id;
+    const isAssignedToOther = !isWaiting && !isMine;
+
+    let primaryAction = null;
+    let actionLabel = '';
+
+    if (isWaiting) {
+      primaryAction = () => takeEncounter(encounter);
+      actionLabel = isTakingEncounter ? 'Taking...' : 'Take Encounter';
+    } else if (isMine) {
+      primaryAction = () => openEncounterWorkspace(encounter);
+      actionLabel = 'Continue';
+    } else {
+      primaryAction = () => openEncounterWorkspace(encounter);
+      actionLabel = 'View';
+    }
 
     return (
       <Pressable
@@ -847,14 +1029,18 @@ export default function DashboardScreen() {
             )}
           </View>
 
-          {showTakeButton && isWaiting && (
+          {primaryAction && (
             <Pressable
-              style={[styles.takeButton, isTakingEncounter && styles.takeButtonDisabled]}
-              onPress={() => takeEncounter(encounter)}
+              style={[
+                styles.actionButton,
+                isWaiting ? styles.actionButtonTake : styles.actionButtonView,
+                isTakingEncounter && styles.actionButtonDisabled,
+              ]}
+              onPress={primaryAction}
               disabled={isTakingEncounter}
             >
-              <Text style={styles.takeButtonText}>
-                {isTakingEncounter ? 'Taking...' : 'Take Encounter'}
+              <Text style={styles.actionButtonText}>
+                {actionLabel}
               </Text>
             </Pressable>
           )}
@@ -862,6 +1048,18 @@ export default function DashboardScreen() {
       </Pressable>
     );
   };
+
+  /* ==========================================================
+     RENDER EMPTY STATE
+  ========================================================== */
+
+  const renderEmptyState = (icon: string, title: string, message: string) => (
+    <View style={styles.emptyState}>
+      <Ionicons name={icon as any} size={48} color="#CBD5E1" />
+      <Text style={styles.emptyStateTitle}>{title}</Text>
+      <Text style={styles.emptyStateText}>{message}</Text>
+    </View>
+  );
 
   /* ==========================================================
      MAIN RENDER
@@ -969,25 +1167,26 @@ export default function DashboardScreen() {
           style={styles.scrollView}
           contentContainerStyle={[styles.content, isMobile && styles.mobileContent, isTablet && styles.tabletContent]}
           showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={loadDashboardData}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={loadDashboardData} tintColor="#123B78" colors={['#123B78']} />
+          }
         >
 
           {/* PAGE TITLE */}
           <View style={[styles.pageHeader, isMobile && styles.mobilePageHeader]}>
-            <Text style={styles.pageTitle}>Healthcare Worker Dashboard</Text>
-            <Text style={styles.dateText}>
-              Date: {new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </Text>
-          </View>
-
-          {/* INFO BANNER */}
-          <View style={styles.infoBanner}>
-            <View style={styles.infoIcon}>
-              <Ionicons name="information" size={17} color="#123B78" />
+            <View>
+              <Text style={styles.pageTitle}>Dashboard</Text>
+              <Text style={styles.pageSubtitle}>
+                {new Date().toLocaleDateString('en-GB', { 
+                  weekday: 'long', 
+                  day: 'numeric', 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </Text>
             </View>
-            <Text style={styles.infoText}>
-              Patient clinical records are accessible in all public health facilities.
+            <Text style={styles.encounterCount}>
+              {stats.active} active {stats.active === 1 ? 'encounter' : 'encounters'}
             </Text>
           </View>
 
@@ -1066,7 +1265,7 @@ export default function DashboardScreen() {
                 <Ionicons name="time" size={20} color="#EA580C" />
               </View>
               <Text style={styles.statNumber}>{stats.waiting}</Text>
-              <Text style={styles.statLabel}>Waiting Encounters</Text>
+              <Text style={styles.statLabel}>Waiting</Text>
             </View>
 
             <View style={styles.statCard}>
@@ -1081,17 +1280,17 @@ export default function DashboardScreen() {
           {/* WAITING ENCOUNTERS */}
           <View style={styles.sectionCard}>
             <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Waiting for Healthcare Worker</Text>
+              <Text style={styles.sectionTitle}>Waiting for You</Text>
               <Text style={styles.sectionCount}>{waitingEncounters.length}</Text>
             </View>
             {waitingEncounters.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="checkmark-circle" size={40} color="#94A3B8" />
-                <Text style={styles.emptyStateTitle}>No waiting encounters</Text>
-                <Text style={styles.emptyStateText}>All active encounters have been assigned.</Text>
-              </View>
+              renderEmptyState(
+                'checkmark-circle',
+                'All caught up!',
+                'No patients are currently waiting for a healthcare worker.'
+              )
             ) : (
-              waitingEncounters.map(e => renderEncounterCard(e, true))
+              waitingEncounters.map(e => renderEncounterCard(e))
             )}
           </View>
 
@@ -1102,13 +1301,13 @@ export default function DashboardScreen() {
               <Text style={styles.sectionCount}>{myEncounters.length}</Text>
             </View>
             {myEncounters.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="folder-open" size={40} color="#94A3B8" />
-                <Text style={styles.emptyStateTitle}>No active encounters</Text>
-                <Text style={styles.emptyStateText}>You have no active encounters assigned.</Text>
-              </View>
+              renderEmptyState(
+                'folder-open',
+                'No active encounters',
+                'You have no active encounters assigned to you.'
+              )
             ) : (
-              myEncounters.map(e => renderEncounterCard(e, false))
+              myEncounters.map(e => renderEncounterCard(e))
             )}
           </View>
 
@@ -1119,13 +1318,13 @@ export default function DashboardScreen() {
               <Text style={styles.sectionCount}>{activeEncounters.length}</Text>
             </View>
             {activeEncounters.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="people" size={40} color="#94A3B8" />
-                <Text style={styles.emptyStateTitle}>No active encounters</Text>
-                <Text style={styles.emptyStateText}>There are no active encounters in the system.</Text>
-              </View>
+              renderEmptyState(
+                'people',
+                'No active encounters',
+                'There are no active encounters in the system right now.'
+              )
             ) : (
-              activeEncounters.map(e => renderEncounterCard(e, false))
+              activeEncounters.map(e => renderEncounterCard(e))
             )}
           </View>
 
@@ -1136,13 +1335,13 @@ export default function DashboardScreen() {
               <Text style={styles.sectionCount}>{completedToday.length}</Text>
             </View>
             {completedToday.length === 0 ? (
-              <View style={styles.emptyState}>
-                <Ionicons name="calendar" size={40} color="#94A3B8" />
-                <Text style={styles.emptyStateTitle}>No completed encounters today</Text>
-                <Text style={styles.emptyStateText}>No encounters have been completed today.</Text>
-              </View>
+              renderEmptyState(
+                'calendar',
+                'No completed encounters',
+                'No encounters have been completed today.'
+              )
             ) : (
-              completedToday.map(e => renderEncounterCard(e, false))
+              completedToday.map(e => renderEncounterCard(e))
             )}
           </View>
 
@@ -1151,13 +1350,6 @@ export default function DashboardScreen() {
             <Text style={styles.footerText}>Carelink Electronic Health Records System</Text>
             <Text style={styles.footerDivider}>|</Text>
             <Text style={styles.footerText}>Department of Health – Republic of South Africa</Text>
-            <View style={styles.footerRight}>
-              <Text style={styles.footerLink}>Help Centre</Text>
-              <Text style={styles.footerDivider}>|</Text>
-              <Text style={styles.footerLink}>Privacy Policy</Text>
-              <Text style={styles.footerDivider}>|</Text>
-              <Text style={styles.footerLink}>Terms of Use</Text>
-            </View>
           </View>
 
         </ScrollView>
@@ -1177,7 +1369,7 @@ export default function DashboardScreen() {
           <View style={styles.workspaceModal}>
             <View style={styles.modalHeader}>
               <View>
-                <Text style={styles.modalTitle}>Encounter Workspace</Text>
+                <Text style={styles.modalTitle}>Encounter Details</Text>
                 {selectedEncounter && (
                   <Text style={styles.modalSubtitle}>
                     {selectedEncounter.patient.first_name} {selectedEncounter.patient.last_name}
@@ -1297,7 +1489,7 @@ export default function DashboardScreen() {
                   </View>
                 </View>
 
-                {/* Take Encounter Button */}
+                {/* Take Encounter Button - Only if waiting */}
                 {selectedEncounter.healthcare_worker_id === null && (
                   <Pressable
                     style={[styles.takeEncounterButton, isTakingEncounter && styles.takeButtonDisabled]}
@@ -1333,7 +1525,7 @@ export default function DashboardScreen() {
                     </View>
                   ) : medicalRecords.length === 0 ? (
                     <View style={styles.emptyRecords}>
-                      <Ionicons name="document-text" size={40} color="#94A3B8" />
+                      <Ionicons name="document-text" size={40} color="#CBD5E1" />
                       <Text style={styles.emptyRecordsTitle}>No medical records</Text>
                       <Text style={styles.emptyRecordsText}>No records have been added for this encounter.</Text>
                     </View>
@@ -1353,14 +1545,102 @@ export default function DashboardScreen() {
                   )}
                 </View>
 
+                {/* Patient History */}
+                <View style={styles.workspaceSection}>
+                  <View style={styles.historyHeader}>
+                    <Text style={styles.workspaceSectionTitle}>Patient History</Text>
+                    <Text style={styles.historyCount}>{patientHistory.length} encounters</Text>
+                  </View>
+
+                  {loadingHistory ? (
+                    <View style={styles.loadingRecords}>
+                      <ActivityIndicator size="small" color="#123B78" />
+                      <Text style={styles.loadingRecordsText}>Loading patient history...</Text>
+                    </View>
+                  ) : patientHistory.length === 0 ? (
+                    <View style={styles.emptyRecords}>
+                      <Ionicons name="time" size={40} color="#CBD5E1" />
+                      <Text style={styles.emptyRecordsTitle}>No previous encounters</Text>
+                      <Text style={styles.emptyRecordsText}>This patient has no previous encounters.</Text>
+                    </View>
+                  ) : (
+                    patientHistory.map((encounter) => {
+                      const isCurrent = encounter.id === selectedEncounter.id;
+                      return (
+                        <View 
+                          key={encounter.id} 
+                          style={[
+                            styles.historyCard,
+                            isCurrent && styles.historyCardCurrent
+                          ]}
+                        >
+                          <View style={styles.historyCardHeader}>
+                            <View style={styles.historyDate}>
+                              <Text style={styles.historyDateText}>
+                                {formatDate(encounter.check_in_at)}
+                              </Text>
+                              <Text style={styles.historyTimeText}>
+                                {formatTime(encounter.check_in_at)}
+                              </Text>
+                            </View>
+                            <View style={[
+                              styles.historyStatus,
+                              encounter.status === 'active'
+                                ? styles.historyStatusActive
+                                : styles.historyStatusCompleted,
+                            ]}>
+                              <Text style={[
+                                styles.historyStatusText,
+                                encounter.status === 'active'
+                                  ? styles.historyStatusTextActive
+                                  : styles.historyStatusTextCompleted,
+                              ]}>
+                                {isCurrent ? '● Current' : getStatusDisplay(encounter.status)}
+                              </Text>
+                            </View>
+                          </View>
+
+                          <View style={styles.historyDetails}>
+                            <View style={styles.historyDetailItem}>
+                              <Ionicons name="business-outline" size={14} color="#64748B" />
+                              <Text style={styles.historyDetailText}>{encounter.facility_name}</Text>
+                            </View>
+                            {encounter.department && (
+                              <View style={styles.historyDetailItem}>
+                                <Ionicons name="folder-outline" size={14} color="#64748B" />
+                                <Text style={styles.historyDetailText}>{encounter.department}</Text>
+                              </View>
+                            )}
+                            {encounter.reason && (
+                              <View style={styles.historyDetailItem}>
+                                <Ionicons name="document-text-outline" size={14} color="#64748B" />
+                                <Text style={styles.historyDetailText}>{encounter.reason}</Text>
+                              </View>
+                            )}
+                            <View style={styles.historyDetailItem}>
+                              <Ionicons name="person-outline" size={14} color="#64748B" />
+                              <Text style={styles.historyDetailText}>
+                                Worker: {encounter.healthcare_worker_name || 'Not assigned'}
+                              </Text>
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })
+                  )}
+                </View>
+
                 {/* Complete Encounter Button */}
                 {selectedEncounter.status === 'active' && selectedEncounter.healthcare_worker_id === userProfile?.id && (
                   <Pressable
-                    style={styles.completeButton}
+                    style={[styles.completeButton, isCompletingEncounter && styles.completeButtonDisabled]}
                     onPress={completeEncounter}
+                    disabled={isCompletingEncounter}
                   >
                     <Ionicons name="checkmark-done" size={20} color="#FFFFFF" />
-                    <Text style={styles.completeButtonText}>Complete Encounter</Text>
+                    <Text style={styles.completeButtonText}>
+                      {isCompletingEncounter ? 'Completing...' : 'Complete Encounter'}
+                    </Text>
                   </Pressable>
                 )}
               </ScrollView>
@@ -1442,7 +1722,7 @@ export default function DashboardScreen() {
         </View>
       </Modal>
 
-      {/* SUCCESS MESSAGE */}
+      {/* TOAST MESSAGES */}
       {successMessage !== '' && (
         <View style={styles.successToast}>
           <View style={styles.successCircle}>
@@ -1452,7 +1732,6 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      {/* ERROR MESSAGE */}
       {errorMessage !== '' && (
         <View style={styles.errorToast}>
           <View style={styles.errorCircle}>
@@ -1726,65 +2005,6 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  // Content
-  scrollView: { flex: 1 },
-  content: {
-    paddingHorizontal: 32,
-    paddingTop: 25,
-    paddingBottom: 35,
-  },
-  tabletContent: { paddingHorizontal: 20, paddingTop: 22 },
-  mobileContent: { paddingHorizontal: 12, paddingTop: 18, paddingBottom: 25 },
-  pageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  mobilePageHeader: {
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: 6,
-  },
-  pageTitle: {
-    color: '#172B4D',
-    fontSize: 27,
-    fontWeight: '700',
-  },
-  dateText: {
-    color: '#172B4D',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-
-  // Info Banner
-  infoBanner: {
-    minHeight: 52,
-    backgroundColor: '#EEF4FF',
-    borderWidth: 1,
-    borderColor: '#BFD3FF',
-    borderRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 18,
-    marginBottom: 23,
-  },
-  infoIcon: {
-    width: 23,
-    height: 23,
-    borderRadius: 12,
-    backgroundColor: '#123B78',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  infoText: {
-    flex: 1,
-    color: '#123B78',
-    fontSize: 13,
-    fontWeight: '600',
-  },
-
   // Find Patient
   findPatientCard: {
     backgroundColor: '#FFFFFF',
@@ -1945,6 +2165,42 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
+  // Content
+  scrollView: { flex: 1 },
+  content: {
+    paddingHorizontal: 32,
+    paddingTop: 25,
+    paddingBottom: 35,
+  },
+  tabletContent: { paddingHorizontal: 20, paddingTop: 22 },
+  mobileContent: { paddingHorizontal: 12, paddingTop: 18, paddingBottom: 25 },
+  pageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 18,
+  },
+  mobilePageHeader: {
+    flexDirection: 'column',
+    alignItems: 'flex-start',
+    gap: 6,
+  },
+  pageTitle: {
+    color: '#172B4D',
+    fontSize: 27,
+    fontWeight: '700',
+  },
+  pageSubtitle: {
+    color: '#64748B',
+    fontSize: 13,
+    marginTop: 4,
+  },
+  encounterCount: {
+    color: '#64748B',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
   // Statistics
   statsGrid: {
     flexDirection: 'row',
@@ -2096,16 +2352,25 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
   },
-  takeButton: {
-    backgroundColor: '#123B78',
+
+  // Action Buttons
+  actionButton: {
     paddingHorizontal: 16,
-    paddingVertical: 6,
+    paddingVertical: 8,
     borderRadius: 6,
+    minWidth: 100,
+    alignItems: 'center',
   },
-  takeButtonDisabled: {
+  actionButtonTake: {
+    backgroundColor: '#059669',
+  },
+  actionButtonView: {
+    backgroundColor: '#2563EB',
+  },
+  actionButtonDisabled: {
     opacity: 0.6,
   },
-  takeButtonText: {
+  actionButtonText: {
     color: '#FFFFFF',
     fontSize: 12,
     fontWeight: '600',
@@ -2150,12 +2415,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginHorizontal: 14,
   },
-  footerRight: {
-    marginLeft: 'auto',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  footerLink: { color: '#475569', fontSize: 11 },
 
   // Modals
   modalOverlay: {
@@ -2354,6 +2613,85 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
+  // History
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historyCount: {
+    color: '#64748B',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  historyCard: {
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
+    padding: 14,
+    marginBottom: 10,
+    backgroundColor: '#FFFFFF',
+  },
+  historyCardCurrent: {
+    borderColor: '#2563EB',
+    backgroundColor: '#EFF6FF',
+  },
+  historyCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  historyDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  historyDateText: {
+    color: '#334155',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  historyTimeText: {
+    color: '#94A3B8',
+    fontSize: 9,
+    marginLeft: 8,
+  },
+  historyStatus: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  historyStatusActive: {
+    backgroundColor: '#ECFDF5',
+  },
+  historyStatusCompleted: {
+    backgroundColor: '#F1F5F9',
+  },
+  historyStatusText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  historyStatusTextActive: {
+    color: '#059669',
+  },
+  historyStatusTextCompleted: {
+    color: '#475569',
+  },
+  historyDetails: {
+    gap: 4,
+  },
+  historyDetailItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  historyDetailText: {
+    color: '#475569',
+    fontSize: 11,
+    flex: 1,
+  },
+
   // Buttons
   takeEncounterButton: {
     flexDirection: 'row',
@@ -2370,6 +2708,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
   },
+  takeButtonDisabled: {
+    opacity: 0.6,
+  },
   completeButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2379,6 +2720,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     gap: 8,
     marginBottom: 10,
+  },
+  completeButtonDisabled: {
+    opacity: 0.6,
   },
   completeButtonText: {
     color: '#FFFFFF',
