@@ -400,11 +400,21 @@ export default function DashboardScreen() {
   ========================================================== */
 
   const handlePatientSearch = () => {
-    if (!patientId.trim()) {
-      router.push('/(app)/patients');
+    const id = patientId.trim();
+
+    if (!id) {
+      setErrorMessage('Please enter a South African ID number.');
+      setTimeout(() => setErrorMessage(''), 5000);
       return;
     }
-    router.push(`/(app)/patients?search=${patientId}`);
+
+    if (id.length !== 13) {
+      setErrorMessage('ID number must contain exactly 13 digits.');
+      setTimeout(() => setErrorMessage(''), 5000);
+      return;
+    }
+
+    router.push(`/(app)/patients?search=${id}`);
   };
 
   /* ==========================================================
@@ -1069,46 +1079,99 @@ export default function DashboardScreen() {
     <View style={[styles.appContainer, isMobile && styles.mobileAppContainer]}>
 
       {/* =====================================================
-          SIDEBAR
-      ===================================================== */}
+    SIDEBAR
+===================================================== */}
 
-      {sidebarOpen && (
-        <View style={[styles.sidebar, isMobile && styles.mobileSidebar, isTablet && styles.tabletSidebar]}>
-          <View style={styles.sidebarBrand}>
-            <Image
-              source={require('../../assets/sa-government-logo.png')}
-              style={styles.governmentLogo}
-              resizeMode="contain"
-            />
-            <View style={styles.brandTextContainer}>
-              <Text style={styles.carelinkText}>CARELINK</Text>
-              <Text style={styles.brandSubtitle}>Electronic Health Records</Text>
-            </View>
-          </View>
+{sidebarOpen && (
+  <View
+    style={[
+      styles.sidebar,
+      isMobile && styles.mobileSidebar,
+      isTablet && styles.tabletSidebar,
+    ]}
+  >
+    <View style={styles.sidebarBrand}>
+      <Image
+        source={require('../../assets/sa-government-logo.png')}
+        style={styles.governmentLogo}
+        resizeMode="contain"
+      />
 
-          <View style={styles.sidebarDivider} />
+      <View style={styles.brandTextContainer}>
+        <Text style={styles.carelinkText}>
+          CARELINK
+        </Text>
 
-          <View style={styles.menuSection}>
-            <Text style={styles.menuLabel}>MAIN MENU</Text>
-            <SidebarItem icon="grid-outline" label="Dashboard" active onPress={() => {}} />
-            <SidebarItem icon="people-outline" label="Patients" onPress={() => router.push('/(app)/patients')} />
-            <SidebarItem icon="calendar-outline" label="Appointments" onPress={() => {}} />
+        <Text style={styles.brandSubtitle}>
+          Electronic Health Records
+        </Text>
+      </View>
+    </View>
 
-            <Text style={[styles.menuLabel, styles.servicesLabel]}>CLINICAL</Text>
-            <SidebarItem icon="document-text-outline" label="Active Encounters" onPress={() => {}} />
-            <SidebarItem icon="checkbox-outline" label="Completed" onPress={() => {}} />
+    <View style={styles.sidebarDivider} />
 
-            <Text style={[styles.menuLabel, styles.servicesLabel]}>SERVICES</Text>
-            <SidebarItem icon="warning-outline" label="Emergency" emergency onPress={() => {}} />
-          </View>
+    <View style={styles.menuSection}>
+      <Text style={styles.menuLabel}>
+        MAIN MENU
+      </Text>
 
-          <View style={styles.sidebarBottom}>
-            <SidebarItem icon="person-outline" label="Profile" onPress={() => router.push('/(app)/profile')} />
-            <SidebarItem icon="log-out-outline" label="Sign Out" onPress={handleSignOut} />
-          </View>
-        </View>
-      )}
+      <SidebarItem
+        icon="grid-outline"
+        label="Dashboard"
+        active
+        onPress={() => {}}
+      />
 
+      <SidebarItem
+        icon="people-outline"
+        label="Patients"
+        onPress={() =>
+          router.push('/(app)/patients')
+        }
+      />
+
+      {/* APPOINTMENTS */}
+      <SidebarItem
+        icon="calendar-outline"
+        label="Appointments"
+        onPress={() =>
+          router.push('/(app)/appointments')
+        }
+      />
+
+      <Text
+        style={[
+          styles.menuLabel,
+          styles.servicesLabel,
+        ]}
+      >
+        CLINICAL
+      </Text>
+
+      <SidebarItem
+        icon="document-text-outline"
+        label="Active Encounters"
+        onPress={() => {}}
+      />
+    </View>
+
+    <View style={styles.sidebarBottom}>
+      <SidebarItem
+        icon="person-outline"
+        label="Profile"
+        onPress={() =>
+          router.push('/(app)/profile')
+        }
+      />
+
+      <SidebarItem
+        icon="log-out-outline"
+        label="Sign Out"
+        onPress={handleSignOut}
+      />
+    </View>
+  </View>
+)}
       {/* =====================================================
           MAIN AREA
       ===================================================== */}
@@ -1205,11 +1268,16 @@ export default function DashboardScreen() {
                     <Ionicons name="person-outline" size={20} color="#94A3B8" />
                     <TextInput
                       value={patientId}
-                      onChangeText={setPatientId}
+                      onChangeText={(text) => {
+                        // Only allow numbers and limit the ID to 13 digits
+                        const numbersOnly = text.replace(/[^0-9]/g, '').slice(0, 13);
+                        setPatientId(numbersOnly);
+                      }}
                       placeholder="Enter ID Number"
                       placeholderTextColor="#94A3B8"
                       style={styles.patientInput}
                       keyboardType="numeric"
+                      maxLength={13}
                     />
                   </View>
                   <Pressable style={[styles.searchButton, isMobile && styles.mobileSearchButton]} onPress={handlePatientSearch}>
