@@ -92,6 +92,8 @@ export default function LoginScreen() {
         router.replace('/(app)/admin');
       } else if (profile.role === 'healthcare_worker') {
         router.replace('/(app)/dashboard');
+      } else if (profile.role === 'hr') {
+        router.replace('/(app)/staff-dashboard');
       } else {
         Alert.alert(
           'Invalid role',
