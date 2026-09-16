@@ -587,8 +587,21 @@ export default function PatientsScreen() {
 
       {/* HEADER */}
       <View style={styles.header}>
-        <Text style={styles.logo}>CARELINK</Text>
-        <Text style={styles.systemText}>Electronic Health Records</Text>
+        <View style={styles.headerTopRow}>
+          <Pressable
+            style={styles.backButton}
+            onPress={() => router.replace('/(app)/dashboard')}
+            accessibilityRole="button"
+            accessibilityLabel="Back to main dashboard"
+          >
+            <Ionicons name="arrow-back" size={22} color="#123B78" />
+          </Pressable>
+
+          <View>
+            <Text style={styles.logo}>CARELINK</Text>
+            <Text style={styles.systemText}>Electronic Health Records</Text>
+          </View>
+        </View>
       </View>
 
       <Text style={styles.title}>Patient Records</Text>
@@ -597,48 +610,62 @@ export default function PatientsScreen() {
       </Text>
 
       {/* SEARCH BY ID */}
-      <Text style={styles.inputLabel}>South African ID Number</Text>
+      <View style={styles.idSearchSection}>
+        <Text style={styles.inputLabel}>South African ID Number</Text>
 
-      <TextInput
-        style={[styles.input, searchLoading && styles.inputDisabled]}
-        placeholder="Enter 13-digit ID number"
-        placeholderTextColor="#94a3b8"
-        value={idNumber}
-        onChangeText={(text) => {
-          const numbersOnly = text.replace(/[^0-9]/g, '');
-          setIdNumber(numbersOnly.slice(0, 13));
-        }}
-        keyboardType="number-pad"
-        maxLength={13}
-        editable={!searchLoading}
-      />
+        <View style={[styles.idSearchRow, isMobile && styles.idSearchRowMobile]}>
+          <View style={[styles.idSearchInputWrap, searchLoading && styles.inputDisabled]}>
+            <Ionicons name="search-outline" size={19} color="#64748B" style={styles.idSearchIcon} />
+            <TextInput
+              style={styles.idSearchInput}
+              placeholder="Enter 13-digit ID number"
+              placeholderTextColor="#94A3B8"
+              value={idNumber}
+              onChangeText={(text) => {
+                const numbersOnly = text.replace(/[^0-9]/g, '');
+                setIdNumber(numbersOnly.slice(0, 13));
+              }}
+              keyboardType="number-pad"
+              maxLength={13}
+              editable={!searchLoading}
+            />
+            {idNumber.length > 0 && !searchLoading && (
+              <Pressable
+                style={styles.idSearchClear}
+                onPress={() => setIdNumber('')}
+                accessibilityRole="button"
+                accessibilityLabel="Clear ID number"
+              >
+                <Ionicons name="close-circle" size={19} color="#94A3B8" />
+              </Pressable>
+            )}
+          </View>
 
-      <View style={styles.inputFooter}>
-        <Text style={styles.helperText}>Enter exactly 13 digits</Text>
-        <Text style={styles.characterCount}>{idNumber.length}/13</Text>
+          <TouchableOpacity
+            style={[styles.idSearchButton, isMobile && styles.idSearchButtonMobile, searchLoading && styles.disabledButton]}
+            onPress={searchPatientById}
+            disabled={searchLoading}
+            activeOpacity={0.8}
+          >
+            {searchLoading ? (
+              <>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={styles.loadingButtonText}>Searching...</Text>
+              </>
+            ) : (
+              <>
+                <Ionicons name="search" size={17} color="#FFFFFF" />
+                <Text style={styles.buttonText}>Search Patient</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.inputFooter}>
+          <Text style={styles.helperText}>Enter exactly 13 digits</Text>
+          <Text style={styles.characterCount}>{idNumber.length}/13</Text>
+        </View>
       </View>
-
-      <TouchableOpacity
-        style={[styles.button, searchLoading && styles.disabledButton]}
-        onPress={searchPatientById}
-        disabled={searchLoading}
-        activeOpacity={0.8}
-      >
-        {searchLoading ? (
-          <>
-            <ActivityIndicator color="#ffffff" />
-            <Text style={styles.loadingButtonText}>Searching...</Text>
-          </>
-        ) : (
-          <Text style={styles.buttonText}>Search Patient</Text>
-        )}
-      </TouchableOpacity>
-
-      {idNumber !== '' && !searchLoading && (
-        <Pressable style={styles.clearButton} onPress={() => setIdNumber('')}>
-          <Text style={styles.clearButtonText}>Clear</Text>
-        </Pressable>
-      )}
 
       {/* STATS */}
       <View style={styles.statsGrid}>
@@ -682,15 +709,28 @@ export default function PatientsScreen() {
           <Text style={styles.directoryCount}>{filteredPatients.length}</Text>
         </View>
 
-        <View style={styles.searchContainer}>
-          <Ionicons name="search" size={18} color="#94A3B8" />
+        <View style={[styles.searchContainer, isMobile && styles.mobileSearchContainer]}>
+          <View style={styles.searchIconBox}>
+            <Ionicons name="search" size={19} color="#123B78" />
+          </View>
           <TextInput
             value={search}
             onChangeText={setSearch}
             placeholder="Search by file number, ID, first or last name..."
             placeholderTextColor="#94A3B8"
             style={styles.searchInput}
+            returnKeyType="search"
           />
+          {search !== '' && (
+            <Pressable
+              onPress={() => setSearch('')}
+              style={styles.searchClearButton}
+              accessibilityRole="button"
+              accessibilityLabel="Clear patient search"
+            >
+              <Ionicons name="close-circle" size={19} color="#94A3B8" />
+            </Pressable>
+          )}
         </View>
 
         {refreshing && patients.length === 0 ? (
@@ -1047,34 +1087,163 @@ function PatientFileField({ label, value }: { label: string; value: string }) {
 // =========================================
 
 const styles = StyleSheet.create({
-  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8fafc' },
-  loadingText: { marginTop: 12, color: '#64748b', fontSize: 16 },
+  // Loading
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+  },
+  loadingText: {
+    marginTop: 12,
+    color: '#123B78',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 
-  container: { flex: 1, paddingHorizontal: 24, paddingTop: 60, paddingBottom: 30, backgroundColor: '#f8fafc' },
+  // Page
+  container: {
+    flex: 1,
+    paddingHorizontal: 32,
+    paddingTop: 0,
+    paddingBottom: 35,
+    backgroundColor: '#F8FAFC',
+  },
 
-  header: { marginBottom: 28 },
-  logo: { fontSize: 30, fontWeight: '800', color: '#2563eb', letterSpacing: 1 },
-  systemText: { fontSize: 12, color: '#94a3b8', marginTop: 3 },
+  // Dashboard-style header
+  header: {
+    height: 84,
+    marginHorizontal: -32,
+    paddingHorizontal: 28,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 25,
+  },
+  headerTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backButton: {
+    width: 42,
+    height: 42,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F1F5F9',
+    marginRight: 14,
+  },
+  logo: {
+    fontSize: 19,
+    fontWeight: '800',
+    color: '#123B78',
+    letterSpacing: 0.5,
+  },
+  systemText: {
+    fontSize: 10,
+    color: '#475569',
+    marginTop: 3,
+  },
 
-  title: { fontSize: 28, fontWeight: '700', color: '#0f172a', marginBottom: 10 },
-  description: { fontSize: 15, lineHeight: 22, color: '#64748b', marginBottom: 25, maxWidth: 600 },
+  title: {
+    fontSize: 27,
+    fontWeight: '700',
+    color: '#172B4D',
+    marginBottom: 6,
+  },
+  description: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: '#64748B',
+    marginBottom: 22,
+    maxWidth: 700,
+  },
 
-  inputLabel: { fontSize: 14, fontWeight: '600', color: '#334155', marginBottom: 8 },
-  input: {
-    height: 54,
-    backgroundColor: '#ffffff',
+  // Inputs
+  idSearchSection: {
+    width: '100%',
+    maxWidth: 920,
+    marginBottom: 2,
+  },
+  inputLabel: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#172B4D',
+    marginBottom: 10,
+  },
+  idSearchRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    gap: 10,
+  },
+  idSearchInputWrap: {
+    flex: 1,
+    minWidth: 0,
+    height: 51,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#cbd5e1',
-    borderRadius: 10,
-    paddingHorizontal: 16,
-    fontSize: 17,
-    color: '#0f172a',
+    borderColor: '#CBD5E1',
+    borderRadius: 5,
+    paddingLeft: 15,
+    paddingRight: 10,
+  },
+  idSearchIcon: {
+    marginRight: 9,
+  },
+  idSearchInput: {
+    flex: 1,
+    minWidth: 0,
+    height: '100%',
+    paddingHorizontal: 0,
+    fontSize: 13,
+    color: '#172B4D',
+    outlineStyle: 'none' as any,
+  },
+  idSearchClear: {
+    width: 30,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
+  idSearchButton: {
+    minWidth: 165,
+    height: 51,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    backgroundColor: '#123B78',
+    justifyContent: 'center',
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  idSearchRowMobile: {
+    flexDirection: 'column',
+    gap: 10,
+  },
+  idSearchButtonMobile: {
+    width: '100%',
+  },
+  input: {
+    height: 51,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    borderRadius: 5,
+    paddingHorizontal: 15,
+    fontSize: 13,
+    color: '#172B4D',
   },
   inputSmall: {
     height: 44,
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 7,
+    borderRadius: 5,
     paddingHorizontal: 12,
     color: '#172B4D',
     fontSize: 13,
@@ -1084,47 +1253,58 @@ const styles = StyleSheet.create({
   textArea: { height: 80, textAlignVertical: 'top', paddingTop: 10 },
   inputDisabled: { opacity: 0.6 },
 
-  inputFooter: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 6, marginBottom: 14 },
-  helperText: { fontSize: 12, color: '#94a3b8' },
-  characterCount: { fontSize: 12, fontWeight: '600', color: '#64748b' },
+  inputFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 6,
+    marginBottom: 13,
+  },
+  helperText: { fontSize: 11, color: '#94A3B8' },
+  characterCount: { fontSize: 11, fontWeight: '600', color: '#64748B' },
 
+  // Primary action - dashboard navy
   button: {
-    height: 54,
-    borderRadius: 10,
-    backgroundColor: '#2563eb',
+    height: 51,
+    borderRadius: 5,
+    backgroundColor: '#123B78',
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
   },
   disabledButton: { opacity: 0.6 },
-  buttonText: { color: '#ffffff', fontSize: 16, fontWeight: '600' },
-  loadingButtonText: { color: '#ffffff', fontSize: 15, fontWeight: '600', marginLeft: 10 },
+  buttonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
+  loadingButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700', marginLeft: 10 },
 
-  clearButton: { alignItems: 'center', paddingVertical: 12 },
-  clearButtonText: { color: '#64748b', fontSize: 14, fontWeight: '600' },
+  clearButton: { alignItems: 'center', paddingVertical: 11 },
+  clearButtonText: { color: '#64748B', fontSize: 12, fontWeight: '600' },
 
-  // Stats
-  statsGrid: { flexDirection: 'row', gap: 12, marginTop: 24, marginBottom: 20 },
+  // Statistics
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 16,
+    marginTop: 24,
+    marginBottom: 23,
+  },
   statCard: {
     flex: 1,
     backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 8,
-    padding: 14,
+    padding: 16,
   },
   statIcon: {
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   statNumber: { color: '#172B4D', fontSize: 22, fontWeight: '700' },
   statLabel: { color: '#64748B', fontSize: 11, marginTop: 2 },
 
-  // Directory
+  // Patient directory
   directorySection: { marginBottom: 10 },
   directoryHeader: {
     flexDirection: 'row',
@@ -1132,70 +1312,104 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
-  directoryTitle: { fontSize: 18, fontWeight: '700', color: '#0f172a' },
+  directoryTitle: { fontSize: 16, fontWeight: '800', color: '#172B4D' },
   directoryCount: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748b',
-    backgroundColor: '#f1f5f9',
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    backgroundColor: '#F1F5F9',
     paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
-
   searchContainer: {
+    width: '100%',
+    maxWidth: 900,
+    alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
-    height: 44,
+    minHeight: 51,
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 7,
-    paddingHorizontal: 12,
-    marginBottom: 14,
+    borderRadius: 5,
+    paddingHorizontal: 10,
+    marginBottom: 18,
     backgroundColor: '#FFFFFF',
-    gap: 8,
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 3,
+    elevation: 1,
   },
-  searchInput: { flex: 1, color: '#172B4D', fontSize: 12, outlineStyle: 'none' as any },
+  mobileSearchContainer: {
+    maxWidth: '100%',
+    minHeight: 51,
+    paddingHorizontal: 9,
+  },
+  searchIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 5,
+    backgroundColor: '#EEF4FB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 9,
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: 0,
+    height: 49,
+    color: '#172B4D',
+    fontSize: 13,
+    outlineStyle: 'none' as any,
+    paddingVertical: 0,
+  },
+  searchClearButton: {
+    width: 34,
+    height: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+  },
 
   directoryLoading: { alignItems: 'center', paddingVertical: 30 },
-  directoryLoadingText: { marginTop: 8, color: '#64748b', fontSize: 13 },
+  directoryLoadingText: { marginTop: 8, color: '#64748B', fontSize: 13 },
   directoryEmpty: {
     alignItems: 'center',
     paddingVertical: 30,
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e2e8f0',
+    borderColor: '#E2E8F0',
   },
   directoryEmptyTitle: { fontSize: 14, fontWeight: '600', color: '#334155' },
-  directoryEmptyText: { fontSize: 12, color: '#94a3b8', marginTop: 4 },
-
+  directoryEmptyText: { fontSize: 12, color: '#94A3B8', marginTop: 4 },
   directoryItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#e2e8f0',
-    borderRadius: 12,
+    borderColor: '#E2E8F0',
+    borderRadius: 8,
     padding: 14,
     marginBottom: 10,
   },
   directoryAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 22,
-    backgroundColor: '#dbeafe',
+    borderRadius: 8,
+    backgroundColor: '#EEF4FB',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
-  directoryAvatarText: { color: '#1e40af', fontSize: 15, fontWeight: '700' },
+  directoryAvatarText: { color: '#123B78', fontSize: 15, fontWeight: '700' },
   directoryInfo: { flex: 1 },
-  directoryName: { fontSize: 15, fontWeight: '700', color: '#0f172a' },
-  directoryId: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  directoryArrow: { color: '#94a3b8', fontSize: 20, fontWeight: '700' },
+  directoryName: { fontSize: 14, fontWeight: '700', color: '#172B4D' },
+  directoryId: { fontSize: 11, color: '#64748B', marginTop: 3 },
+  directoryArrow: { color: '#94A3B8', fontSize: 20, fontWeight: '700' },
 
-  // Badges
+  // Badges / statuses
   badgeRow: { flexDirection: 'row', gap: 6, marginTop: 6 },
   badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
   badgeText: { fontSize: 10, fontWeight: '600' },
@@ -1208,27 +1422,27 @@ const styles = StyleSheet.create({
   badgeGray: { backgroundColor: '#F1F5F9' },
   badgeTextGray: { color: '#475569' },
 
-  // Security
+  // Security notice
   securityMessage: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#EFF6FF',
     borderWidth: 1,
-    borderColor: '#dbeafe',
-    borderRadius: 10,
+    borderColor: '#DBEAFE',
+    borderRadius: 8,
     padding: 14,
     marginTop: 22,
     marginBottom: 30,
   },
   securityIcon: { fontSize: 20, marginRight: 10 },
   securityContent: { flex: 1 },
-  securityTitle: { fontSize: 12, fontWeight: '700', color: '#1e40af' },
+  securityTitle: { fontSize: 12, fontWeight: '700', color: '#1E40AF' },
   securityText: { fontSize: 11, color: '#475569', marginTop: 3, lineHeight: 16 },
 
   // Modals
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
+    backgroundColor: 'rgba(23, 43, 77, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -1238,10 +1452,10 @@ const styles = StyleSheet.create({
     maxWidth: 850,
     maxHeight: '90%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 8,
     padding: 24,
   },
-  modal: { width: '100%', maxWidth: 500, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 24 },
+  modal: { width: '100%', maxWidth: 500, backgroundColor: '#FFFFFF', borderRadius: 8, padding: 24 },
   patientFileScroll: { flexGrow: 0 },
   modalHeader: {
     flexDirection: 'row',
@@ -1256,7 +1470,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8FAFC',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 9,
+    borderRadius: 8,
     padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
@@ -1265,8 +1479,8 @@ const styles = StyleSheet.create({
   patientFileIcon: {
     width: 48,
     height: 48,
-    borderRadius: 10,
-    backgroundColor: '#EFF6FF',
+    borderRadius: 8,
+    backgroundColor: '#EEF4FB',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1283,7 +1497,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 9,
+    borderRadius: 8,
     overflow: 'hidden',
   },
   patientFileField: {
@@ -1322,10 +1536,10 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: 5,
   },
   actionBtnText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  editBtn: { backgroundColor: '#2563EB' },
+  editBtn: { backgroundColor: '#123B78' },
   verifyBtn: { backgroundColor: '#059669' },
   biometricBtn: { backgroundColor: '#7C3AED' },
   encounterBtn: { backgroundColor: '#EA580C' },
@@ -1339,7 +1553,7 @@ const styles = StyleSheet.create({
     minWidth: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#EEF4FB',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1347,7 +1561,7 @@ const styles = StyleSheet.create({
   encounterCard: {
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 9,
+    borderRadius: 8,
     padding: 14,
     marginBottom: 10,
     backgroundColor: '#FFFFFF',
@@ -1372,7 +1586,7 @@ const styles = StyleSheet.create({
     paddingVertical: 30,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 9,
+    borderRadius: 8,
     backgroundColor: '#F8FAFC',
   },
   emptyTitle: { color: '#334155', fontSize: 14, fontWeight: '600', marginTop: 10 },
@@ -1382,12 +1596,12 @@ const styles = StyleSheet.create({
   cancelButton: {
     borderWidth: 1,
     borderColor: '#CBD5E1',
-    borderRadius: 7,
+    borderRadius: 5,
     paddingHorizontal: 16,
     paddingVertical: 11,
   },
   cancelButtonText: { color: '#475569', fontSize: 12, fontWeight: '600' },
-  saveButton: { backgroundColor: '#123B78', borderRadius: 7, paddingHorizontal: 16, paddingVertical: 11 },
+  saveButton: { backgroundColor: '#123B78', borderRadius: 5, paddingHorizontal: 16, paddingVertical: 11 },
   saveButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '600' },
 
   facilityOption: {
@@ -1395,14 +1609,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 7,
+    borderRadius: 5,
     paddingHorizontal: 12,
     paddingVertical: 12,
     marginBottom: 8,
   },
-  facilityOptionSelected: { borderColor: '#2563EB', backgroundColor: '#EFF6FF' },
+  facilityOptionSelected: { borderColor: '#123B78', backgroundColor: '#EEF4FB' },
   facilityText: { color: '#475569', fontSize: 13, fontWeight: '600' },
-  facilityTextSelected: { color: '#1D4ED8' },
+  facilityTextSelected: { color: '#123B78' },
   radio: {
     width: 18,
     height: 18,
@@ -1413,12 +1627,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 10,
   },
-  radioSelected: { borderColor: '#2563EB' },
-  radioInner: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#2563EB' },
+  radioSelected: { borderColor: '#123B78' },
+  radioInner: { width: 9, height: 9, borderRadius: 5, backgroundColor: '#123B78' },
 
+  // Success toast
   successToast: {
     position: 'absolute',
-    top: 40,
+    top: 98,
     right: 20,
     backgroundColor: '#ECFDF5',
     borderWidth: 1,
@@ -1441,3 +1656,4 @@ const styles = StyleSheet.create({
   },
   successText: { color: '#065F46', fontSize: 12, fontWeight: '600', flex: 1 },
 });
+
